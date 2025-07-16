@@ -1,0 +1,43 @@
+version: '3-8'
+
+services:
+
+  flask-app-praksa:
+    build: .                        #buildujemo flask-app-prakse image koristeci DockerFile u ovom direktorijumu
+    container_name: flask-app-praksa
+    env_file:
+      - ./devinfoDocker.env
+    ports:
+      - "5000:5000"                 #flask
+      - "5678:5678"                 #debugpy
+
+    environment:
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_PORT=${MYSQL_PORT}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DB=${MYSQL_DB_NAME}
+
+    depends_on:            #osigurava redosled pokretanja flask saceka redis i mysql pokrenu pre njega, ali ne i readines, Flask app treba sam da ceka MySQL i Redis da budu availible
+      - redis
+      - mysql_db
+
+    volumes:
+      - .:/usr/src/app             # Map local 'app' folder to container for live code updates, mapira ./app directory sa lokalne masine na /usr/src/app unutar kontjnera, dozvoljava LIVE CODE changes bez rebuilodvanja kontejnera
+    working_dir: /usr/src/app      # Ensure Flask runs from this directory
+    entrypoint: ["/bin/bash", "./wait-for-mysql.sh"]   # Use wait script before running Flask, za ovo mi je trebalo 3 dana, depends garantuje order po kom se pokrece a ne garantuje je da je mysql skroz spreman za primanje konekc...
+    #ovaj entryPoint ne mora da se napise jer je vec napisan u DockerFile-u, ali cisto da se zna sta se desava sam ostavio kad se gleda docker-compose
+    networks:              
+      #- frontend-network  dobijace preko nginx-a zahteve, ovako je sigurnije jer flask-app nije direktno dostupan preko interneta i ovako ce isto u production-u biti
+      - backend-network 
+
+
+networks:
+  backend-network-praksa:                  #koristimo takodje 2 networka zbog bezbednosti flask ce im moci pristupiti obema ali sa interneta nece moci se backedntu pristupiti
+      driver: bridge                      #koristi dockerov bridge network mode -> conteineri na ovom networku mogu izmedju sebe da komunciraju jedni sa drugima izolovani od host machine
+  frontend-network-praksa:
+      driver: bridge    
+
+volumes:
+    mysql_db-data-praksa:                  
+    redis-data-praksa:                    
