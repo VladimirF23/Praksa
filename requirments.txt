@@ -1,0 +1,9 @@
+redis
+bcrypt
+Flask-JWT-Extended
+Flask
+mysql-connector-python
+python-dotenv
+websockets
+debugpy
+Flask-CORS

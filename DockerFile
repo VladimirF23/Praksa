@@ -1,0 +1,30 @@
+FROM python:3.10-slim
+
+WORKDIR /usr/src/app
+
+
+#
+RUN apt-get update && apt-get install -y default-mysql-client && rm -rf /var/lib/apt/lists/*
+
+COPY requirments.txt ./
+
+#instaliramo potrebne stvari iz requirments-a
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+# kopiramo ceo code projekta u container, copy . . postavljamo ispod COPY requirments i run pip jer se code projekta menja cesto i onda sve instrukcije
+# koje prave layer-e (RUN,COPY,CMD,ENTRYPOINT) ce cache missovati i to nam isporava build-ovanje image-a, pravilo je uvek pisi prvo stvari koje ce retko menjanaju 
+# pa tek onda stvari koje se cesto menja da bi koristio maksimalno cache hitovanje
+COPY . . 
+
+
+#da obezbedimo da skripta moze da se executuje u container-u
+RUN chmod +x wait-for-mysql.sh
+
+
+
+EXPOSE 5000
+EXPOSE 5678 
+
+# definisanje skripte koju ce container izvrsiti kada se izgradi Image iz ovog DockerFile-a
+ENTRYPOINT ["/bin/bash", "./wait-for-mysql.sh"]
