@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Start Docker Containers",         //ime task-a
+        "type": "shell",
+        "command": "docker compose --env-file devinfoDocker.env up -d",
+        "isBackground": true,    //da task runuje u pozadini i da mogu da radim da ne cekam da se on zavrsi
+        "presentation": {       //da vidimo u terminalu output
+          "reveal": "always"
+        }
+      },
+      {
+        "label": "Stop Docker Containers",          //ne treba da brise volume kada se ugasi kontainer 
+        "type": "shell",
+        "command": "docker compose stop",           //docker compose down da ih removuje,  a stop je da ih ugasi samo
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always"
+        }
+      }
+    ]
+  }
+  

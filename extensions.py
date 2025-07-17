@@ -27,7 +27,7 @@ redis_client = redis.StrictRedis(
     decode_responses=True  # Automatically decode strings da ne budu u byte-ovima
 )
 
-#Da proverimo redis dal se startovao
+# provera da li redis radi
 try:
     redis_client.ping()
     print("Connected to Redis successfully!")

@@ -1,0 +1,66 @@
+{
+    "version": "0.2.0",                                         //launch.json je config file za VSCode da definise kako da launchujemo i debugujemo aplikaciju
+    "configurations": [                                         //niz u kome definujemo razlicite debuging konfiguracije
+      {
+        "name": "Debug Flask App",                              //ime konfiguracije
+        "type": "debugpy",                                      //debuger koji koristimo
+        "request": "attach",                                    //Da li da runujemo ili atachujemo na pokrenuti proces u nasem slucaju atachujemo
+        "connect": {                                            //kako da se konektujemo na app
+          "host": "localhost",
+          "port": 5678                                          //port na koji se debuger connectuje ovaj port sam exposovoa u flask conteineru
+        },
+        "pathMappings": [                                       //mapiranje izmedju lokal i remote file path-ova, Ovo je vazan deo pri radu sa Docker-om ili remote enviermentom
+          {
+            "localRoot": "${workspaceFolder}",                  //Path na lokalnoj masini ka source code-u
+            "remoteRoot": "/usr/src/app"                        //path unutar kontejnera gde residuje source code, ovo nam osigurava da kada debuger dodje do breakPointa
+          }                                                     //da VS code moze da mapira file-ove ispravno izmedju lokalnih i kontejnera
+        ],
+        "preLaunchTask": "Start Docker Containers",             // prelaunch govori koji task pre debug sessiona da se pokrene, to je onaj tasks.json tu sam stavio ovaj start docker
+        "postDebugTask": "Stop Docker Containers"               // optional: shuts down containers after debug ends
+
+        },                                                      // Sto znaci da pre debugovanja VS code pokrece task koji startuje Docker containere koristeci docker compose
+        
+      {
+
+            "name": "Debug React in Chrome",
+            "type": "chrome",
+            "request": "launch",
+            "url": "https://localhost",                         // Pristup preko Nginxa PROMENITI IME OVOGA !!!!
+            "webRoot": "${workspaceFolder}/Frontend/my-app", // <--- Stavi na koren webRoot na koren React projekta (ne na src)
+            "sourceMaps": true,
+            "runtimeArgs": [
+                "--remote-debugging-port=9222"
+            ],
+            "sourceMapPathOverrides": {
+                // <--- PROMENA: Prilagodjene putanje
+                // Mapira standardne Webpack putanje na putanje relativne u odnosu na webRoot
+                "webpack:///./src/*": "${webRoot}/src/*",  // npr. webpack:///./src/App.js -> ${workspaceFolder}/Frontend/my-app/src/App.js
+                "webpack:///src/*": "${webRoot}/src/*",    // npr. webpack:///src/App.js -> ${workspaceFolder}/Frontend/my-app/src/App.js
+                "webpack:///*": "${webRoot}/*",            // Catch-all za ostale webpack putanje
+                
+                // Dodatna pravila za slučaj da source mape koriste apsolutne putanje unutar kontejnera
+                "/app/src/*": "${webRoot}/src/*",           // npr. /app/src/App.js -> ${workspaceFolder}/Frontend/my-app/src/App.js
+                "/app/*": "${webRoot}/*",                   // npr. /app/package.json -> ${workspaceFolder}/Frontend/my-app/package.json
+                
+                // Za statičke fajlove i bundle-ove ako se pojave u source mapama s punim URL-om
+                "http://localhost:3000/static/js/*": "${webRoot}/src/*", // Ako se dev server URL pojavi
+                "https://localhost/static/js/*": "${webRoot}/src/*"      // Ako se Nginx URL pojavi
+            },
+            "skipFiles": [
+                "${workspaceFolder}/node_modules/**/*.js",
+                "<node_internals>/**/*.js",
+                "**/webpack-internal://**"
+            ]
+      }
+    ],
+      "compounds": [                                              //  compound -> da se pokrene vise debugera odjednom
+    {
+      "name": "Debug Full Stack (Flask + React)",   
+      "configurations": [
+        "Debug Flask App",
+        "Debug React in Chrome"
+      ]
+    }
+    ]   
+  }
+  
