@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.9-slim
 
 WORKDIR /usr/src/app
 
@@ -6,7 +6,7 @@ WORKDIR /usr/src/app
 #
 RUN apt-get update && apt-get install -y default-mysql-client && rm -rf /var/lib/apt/lists/*
 
-COPY requirments.txt ./
+COPY requirements.txt ./
 
 #instaliramo potrebne stvari iz requirments-a
 
@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . . 
 
 
-#da obezbedimo da skripta moze da se executuje u container-u
+#da skripta moze da se exceutuje u contianer-u za svaki slucaj, +x ->make this file executable
 RUN chmod +x wait-for-mysql.sh
 
 

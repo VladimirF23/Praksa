@@ -8,7 +8,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 #ne zaboravi blueprinte da dodas
-
+app.register_blueprint(registration_blueprint)
 
 
 if __name__ =='__main__':

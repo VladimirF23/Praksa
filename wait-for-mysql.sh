@@ -1,9 +1,10 @@
 #!/bin/bash
-set -e          #
+set -e          
 
 env #da vidim koje sve .env variable ova skripta vidi
 
 #ova skripta zna za .env varbaible zato sto docker engine ih loaduje u dockerComposu ./devinfo... a docker 
+#Takodje potrebno je promeniti u donjem desnom uglu na LF da bi unixov format
 
 : "${MYSQL_HOST?Need to set MYSQL_HOST}"                #ove moraju da postoje, ako ne postoje scripta ce izaci sa error mesageom
 : "${REDIS_PASSWORD?Need to set REDIS_PASSWORD}"

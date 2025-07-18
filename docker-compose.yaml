@@ -19,8 +19,8 @@ services:
       - MYSQL_DB=${MYSQL_DB_NAME}
 
     depends_on:                                                 #osigurava redosled pokretanja flask saceka redis i mysql pokrenu pre njega, ali ne i readines, Flask app treba sam da ceka MySQL i Redis da budu availible
-      - redis
-      - mysql_db
+      - redis-praksa
+      - mysql_db-praksa
 
     volumes:
       - .:/usr/src/app                                          # mapira direktorijum sa lokalne masine na /usr/src/app unutar kontjnera, dozvoljava LIVE CODE changes bez rebuilodvanja kontejnera
@@ -31,9 +31,9 @@ services:
                                                                 #- frontend-network  dobijace preko nginx-a zahteve, ovako je sigurnije jer flask-app nije direktno dostupan preko interneta i ovako ce isto u production-u biti
       - backend-network-praksa 
 
-  mysql_db:
+  mysql_db-praksa:
     image: mysql:8.0
-    container_name: mysql_db
+    container_name: mysql_db-praksa
     env_file:
       - ./devinfoDocker.env 
     environment:
@@ -45,14 +45,14 @@ services:
     networks:                                             
       - backend-network-praksa
 
-  redis:
+  redis-praksa:
     image: redis:alpine         
-    container_name: redis
+    container_name: redis-praksa
     env_file:
       - ./devinfoDocker.env    
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]    # command over-riduje default command koja pokrece redis u kontenieru, redis server pokrece redis service unutar redis container-a i zahteva da svaka konekcija na reddis
     networks:                                                          # zahteva sifru 
-      - backend-network                                             
+      - backend-network-praksa                                             
     volumes:                                                         
       - redis-data-praksa:/data                                        # mountujemo redis volume unutar data foldera u container-u da bi imali perzisenticiju podataka koji se cuvaju u volume-u
 
