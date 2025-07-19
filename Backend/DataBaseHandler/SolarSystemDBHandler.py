@@ -4,7 +4,7 @@ from ..CustomException import *
 
 
 
-def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> int:
+def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> dict:
     """
         Registrujemo Solarni System on ima Foreign key-eve: user_id i battery_id, battery_id je relaksiran i moze da bude null
         tj u slucaju kada sistme nije gridTiedHybrid battery ce biti null
@@ -17,7 +17,7 @@ def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> int:
     system_type             = solar_system["system_type"]  # 'grid_tied' ili 'grid_tied_hybrid'
     total_panel_wattage_wp  = solar_system["total_panel_wattage_wp"]
     inverter_capacity_kw    = solar_system["inverter_capacity_kw"]
-
+    base_consumption_kwh    = solar_system["base_consumption_kwh"]
     exception_messages = []
 
     if not system_name:
@@ -28,19 +28,25 @@ def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> int:
         exception_messages.append("Total panel wattage can't be NULL.")
     if not inverter_capacity_kw:
         exception_messages.append("Inverter capacity can't be NULL.")
+    if not base_consumption_kwh:
+        exception_messages.append("Base consumption can't be NULL.")
     if exception_messages:
         raise IlegalValuesException(" ".join(exception_messages))
 
 
     query = """
     INSERT INTO solar_systems 
-        (user_id, system_name, system_type, total_panel_wattage_wp, inverter_capacity_kw, battery_id)
+        (user_id, system_name, system_type, total_panel_wattage_wp, inverter_capacity_kw, battery_id,base_consumption_kwh)
     VALUES 
-        (%s, %s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s, %s,%s)
+    """
+
+    select_query="""
+    SELECT *  FROM solar_systems where system_id=%s
     """
 
     connection = getConnection()
-    cursor = connection.cursor()
+    cursor = connection.cursor(dictionary=True)
 
     try:
         cursor.execute(query, (
@@ -49,10 +55,19 @@ def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> int:
             system_type,
             total_panel_wattage_wp,
             inverter_capacity_kw,
-            battery_id  # moze biti None → NULL u bazi
+            battery_id,  # moze biti None → NULL u bazi
+            base_consumption_kwh
         ))
         connection.commit()
-        return cursor.lastrowid                 #vracamo id solar systema da bi mogli da ga damo bateriji
+
+        system_id = cursor.lastrowid
+
+        # da dobijemo 
+        cursor.execute(select_query, (system_id,))
+        inserted_solarSystem = cursor.fetchone()
+
+
+        return inserted_solarSystem                 
 
     except mysql.connector.IntegrityError as err:
         connection.rollback()

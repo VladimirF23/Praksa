@@ -3,9 +3,11 @@ from ..CustomException import *
 import bcrypt
 
 
-def RegisterUser(user:dict):
+def RegisterUser(user:dict) ->dict:
     """
     Registruje novog korisnika u bazu podataka Baca izuzetke u slucaju duplikata username-a/email-a ili problema sa konekcijom.
+    Return:
+        Vraca registovan user-a kao dict I TAKODJE VRACA njegov ID kreiran u bazi
     """
     #hesiranje sifre cemo u service-u uraditi
     #ovde ce biti exception ako vec postoji User sa ovim username-om
@@ -27,10 +29,13 @@ def RegisterUser(user:dict):
         (%s, %s, %s, %s, %s, %s, %s, %s)
     """
 
+    select_query = """
+    SELECT * FROM users WHERE user_id = %s
+    """
     
     connection = getConnection()
 
-    cursor = connection.cursor()
+    cursor = connection.cursor(dictionary=True)
 
     try:
         cursor.execute(query, (                         #parametrizovani sql upiti MySql connector insertuje vrednosti u qeurry i provera da li ima SQL injectiona
@@ -42,9 +47,15 @@ def RegisterUser(user:dict):
             num_household_members,
             latitude,
             longitude
-        ))                    
+        ))
         connection.commit()
-        return True
+        user_id = cursor.lastrowid
+
+        # da dobijemo 
+        cursor.execute(select_query, (user_id,))
+        inserted_user = cursor.fetchone()
+
+        return inserted_user
     
     except mysql.connector.IntegrityError as err:
         connection.rollback()                           #da vratimo bazu u stanje pre nego sto je transakcija pocela, ako postoji duplikat sprecavamo da insertion izvrsi o ostavljamo bazu ne promenjenu
@@ -59,3 +70,6 @@ def RegisterUser(user:dict):
     finally:
         cursor.close()
         release_connection(connection)
+
+
+

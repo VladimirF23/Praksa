@@ -11,10 +11,13 @@ def HashPassword(password:str)->str:
 
 
 
-def RegisterUserService(user:dict):
+def RegisterUserService(user:dict)->dict:
     """
     Registracioni service koji prosledjuje DBHandleru parametre korisnika za registraciju
     Hash-uje sifru korisnika
+
+    Returnuje:
+        vraca ono sto dbhandler sloj vrati tj user-a iz baze zajedno sa njegovim ID-ejem
     """
 
     if len(user["password"]) > 256 or len(user["password"]) < 8:
@@ -65,4 +68,12 @@ def RegisterUserService(user:dict):
     if "user_type" in user:
         user_data_for_db["user_type"] = user["user_type"]
 
-    RegisterUser(user_data_for_db)                  #poziv DataBase Layer-a, tu se nalaze exceptionu za unos vec postojeceg email-a ili username-a
+    return RegisterUser(user_data_for_db)                  #poziv DataBase Layer-a, tu se nalaze exceptionu za unos vec postojeceg email-a ili username-a
+
+
+
+#preko login-a saljemo username i passwrod 
+def LoginUserService(user:dict):
+
+    #user["password"] = HashPassword(user["password"])   NE TREBA DA SE HASHUJE SIFRA ZBOG SALT-a ONDA SE NIKAD NECE POREDITI ISTI HASH CAK I AKO SE UNETA SIFRA POKLAPA SA DB sifrom 
+    return GerUserCredentials(user)                     #DB sloj vraca dict tip, ako je sve ok vratice user-a sa infom

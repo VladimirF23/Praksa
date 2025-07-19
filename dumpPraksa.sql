@@ -32,7 +32,9 @@ CREATE TABLE solar_systems (
     total_panel_wattage_wp DECIMAL(10, 2) NOT NULL,                   -- Total Watt-peak kapacitet za sve panele (e.g., 5000 for 5kW)
     inverter_capacity_kw DECIMAL(10, 2) NOT NULL,                     -- Inverter kapacitet u kW
     battery_id INT NULL,                                              -- Foreign kljuc ka bateries tabeli ako je hibridni sistem (zato je dozvoljeno null ako nije hib. onda nema bateriju)
-                                                                      
+    base_consumption_kwh DECIMAL(10, 2) NOT NULL,                     -- Dodato novo polje (izracunato iz m^2 i broja članova)
+
+
     -- FOREIGN KEY Constraint-ovi                                     -- Podsetnik strani kljuc obezbedjuje: da vrednosti u jednoj tabeli odgovaraju vrednostima u drugoj tabeli tj da nema sirocadi, user_id u ovoj tabeli mora postojati u tabeli users
                                                                       -- takodje regulise automatski brisanje i azuziranje pomocu ON DELETE i ON UPDATE, znaci ako se user obrise u tabeli users obrisace se solarni sistem koji je imao fk na taj id u tabeli users
                                                                       -- Foreign key ne osigurava jedinstvenost tj isti user_id se moze pojaviljivati vise puta u ovoj tabeli, osim ako EKSPLICITNO ne stavimo UNIQUE na FK kao u ovoj tabeli
@@ -48,7 +50,7 @@ CREATE TABLE solar_systems (
 -- da bi mogao da 
 CREATE TABLE batteries (
     battery_id INT AUTO_INCREMENT PRIMARY KEY,
-    solar_system_id INT UNIQUE,                                         -- Osiguramo da 1 solarni sistem moze max 1 bateriju da ima, takodje moze biti null ako solarni system jos nije kreiran
+    system_id INT UNIQUE,                                               -- Osiguramo da 1 solarni sistem moze max 1 bateriju da ima, takodje moze biti null ako solarni system jos nije kreiran
     model_name VARCHAR(255),                                            -- i tako nemamo onu zavisnost minimalnog kardinaliteta da je 1 vec je sada 0 
     capacity_kwh DECIMAL(10, 2) NOT NULL,                               -- Kapacitet u Kilowat casovima
     max_charge_rate_kw DECIMAL(10, 2),                                  -- Max snaga punjenja u kW   -> detaljnije istrazi o ovim parametrima
@@ -65,14 +67,17 @@ CREATE TABLE batteries (
 CREATE TABLE iot_devices (
     device_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,                                               -- FK ka users table
-    device_name VARCHAR(255) NOT NULL,                                  -- , 'Bojler', 'Klima', 'Ves masina'
-    device_type VARCHAR(100),                                           -- , 'Water Heater', 'AC', 'Washing Machine' (za kategorizaciju imacu tipa 3 osnovne kategirija i po 3 uredjaja maks)
+    system_id INT,                                                      -- FK ka solar_systems (opciono: neki uredjaji nisu deo sistema)
+    device_name VARCHAR(255) NOT NULL,                                  --  'Bojler', 'Klima', 'Ves masina'
+    device_type VARCHAR(100),                                           --  'Water Heater', 'AC', 'Washing Machine' (za kategorizaciju imacu tipa 3 osnovne kategirija i po 3 uredjaja maks)
     base_consumption_watts DECIMAL(10, 2) NOT NULL,                     -- Baseline potrosnja kada su aktivni (u Wat-ima)
     priority_level ENUM('critical', 'medium', 'low', 'non_essential') NOT NULL DEFAULT 'medium', -- Za automatizaciju gasenje onih non-essential prvo
     current_status ENUM('on', 'off') NOT NULL DEFAULT 'off',            -- stanje uredjaja (simulated)
     is_smart_device BOOLEAN NOT NULL DEFAULT FALSE,                     -- True ako je  'smart' uredjaj koji se moze kontrolisati preko web-a 
     added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE   -- Ako se korisnik brise brisu se i njegovi urejdaji
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,   -- Ako se korisnik brise brisu se i njegovi urejdaji
+    FOREIGN KEY (system_id) REFERENCES solar_systems(system_id) ON DELETE SET NULL -- Ako se sistem obrise, uredjaji ostaju ali bez vezanog sistema
+
 );
 
 
