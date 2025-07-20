@@ -71,6 +71,12 @@ def RegisterUserService(user:dict)->dict:
     return RegisterUser(user_data_for_db)                  #poziv DataBase Layer-a, tu se nalaze exceptionu za unos vec postojeceg email-a ili username-a
 
 
+def GetUserByIdService(user_id:int) ->dict:
+
+    
+    return GetUserById(user_id)
+
+
 
 #preko login-a saljemo username i passwrod 
 def LoginUserService(user:dict):

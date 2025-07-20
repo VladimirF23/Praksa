@@ -89,3 +89,34 @@ def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> dict:
 
 
 
+def GetSolarSystemByUserId(user_id:int)->dict:
+    query ="""
+    SELECT * FROM solar_systems WHERE user_id = %s
+    """
+    connection = getConnection()
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+
+
+        # da dobijemo 
+        cursor.execute(query, (user_id,))
+        solar_system = cursor.fetchone()
+
+        return solar_system
+    
+    except mysql.connector.IntegrityError as err:
+        if err.errno ==1406:
+            raise IlegalValuesException("The values are in invalid fromat")
+        
+    except mysql.connector.OperationalError:
+        connection.rollback()  
+        raise ConnectionException("An connection error occurred while registering the user.") 
+    finally:
+        cursor.close()
+        release_connection(connection) 
+
+
+
+

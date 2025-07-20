@@ -57,3 +57,8 @@ def RegisterSolarSystemService(solar_system: dict, user_id: int, battery_id: int
     }
 
     return RegisterSolarSystem(solar_data_for_db, user_id, battery_id)
+
+
+def GetSolarSystemByUserIdService(user_id:int)->dict:
+
+    return GetSolarSystemByUserId

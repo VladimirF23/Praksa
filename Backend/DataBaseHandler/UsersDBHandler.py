@@ -72,4 +72,87 @@ def RegisterUser(user:dict) ->dict:
         release_connection(connection)
 
 
+def GetUserById(user_id:int)->dict:
 
+    query ="""
+    SELECT * FROM users WHERE user_id = %s
+    """
+    connection = getConnection()
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+
+
+        # da dobijemo 
+        cursor.execute(query, (user_id,))
+        user_db = cursor.fetchone()
+
+        return user_db
+    
+    except mysql.connector.IntegrityError as err:
+
+        if err.errno ==1406:
+            raise IlegalValuesException("The values are in invalid fromat")
+        
+    except mysql.connector.OperationalError:
+        connection.rollback()  
+        raise ConnectionException("An connection error occurred while registering the user.") 
+    finally:
+        cursor.close()
+        release_connection(connection)
+
+
+#Fora sa ovim je prilikom logovanja da bi proverili password ne mozemo koristiti onaj hash jel tu ima salt-a i onda
+#ce taj salt cak i za dobru unetu sifru je promenuti i nece valjati pa cemo koristiti nes sepcijalno od bcrypt
+def GerUserCredentials(userCredentials: dict):
+
+    #ako nije registrovan digni NotFoundException i stavi user not registered 
+    query = """
+        SELECT user_id, username, email, password_hash, user_type, house_size_sqm, num_household_members, registration_date, latitude, longitude
+        FROM users WHERE username = %s;
+    """
+    #u qeurry proveravamo prvo username dal postoji ako postoji onda izvlacimo hashiranu sifru da proverimo da li je dobra sa unetom sifrom
+    username = userCredentials["username"]
+    entered_pass= userCredentials["password"]
+
+
+    connection = getConnection()
+    cursor = connection.cursor(dictionary=True)         #ovde ga konvertujemo automatski da vrati kao dict
+
+    try:
+        cursor.execute(query,(username,))
+
+        #fetcone vraca kao tuple pa cemo ga konvertovati u dict, lakse je preko dict jer pristupam sa imenima kolona, a ne ono indkesovano 0,1,2,3
+        #i jos je JSON ready jer mogu onda direkt da ga vratim direkt ka FLASK-API response preko jsonify
+        user = cursor.fetchone()
+        if not user:
+            raise NotFoundException("Username/password not valid")
+        
+
+        #ovo je izvuceno iz mysql
+        db_hashed = user["password_hash"]
+
+        if not bcrypt.checkpw(entered_pass.encode("utf-8"), db_hashed.encode("utf-8")):
+            raise NotFoundException("Username/password not valid")
+
+        del user["password_hash"]
+
+        #brisemo da ne bi API response bio presreten ili logovan
+        #zbog preksravanja least privlage-a tj frontend ne treba da interesuje sifra
+
+
+        #vracamo user info
+        return user
+    
+    except mysql.connector.IntegrityError as err:
+
+        if err.errno ==1406:
+            raise IlegalValuesException("The values are in invalid fromat")
+        
+    except mysql.connector.OperationalError:
+        connection.rollback()  
+        raise ConnectionException("An connection error occurred while registering the user.") 
+    finally:
+        cursor.close()
+        release_connection(connection)

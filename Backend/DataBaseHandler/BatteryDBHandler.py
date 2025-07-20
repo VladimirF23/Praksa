@@ -141,3 +141,52 @@ def AddSolarSystemToBattery(battery_id, system_id) -> bool:
     finally:
         cursor.close()
         release_connection(connection) 
+
+
+def GetBatteryData(battery_id: int) ->dict:
+    query ="""
+    SELECT * FROM batteries WHERE battery_id = %s
+    """
+    connection = getConnection()
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute(query, (battery_id,))
+        battery = cursor.fetchone()
+        return battery
+
+    except mysql.connector.Error as err: # Catch generic MySQL errors for robustness
+        connection.rollback()
+
+        raise ConnectionException(f"Database error occurred while fetching battery: {str(err)}")
+    finally:
+        cursor.close()
+        release_connection(connection)
+
+def GetBatteryIdBySystemIDService(system_id:int)->dict:
+    query ="""
+    SELECT * FROM batteries WHERE system_id = %s
+    """
+    connection = getConnection()
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+
+
+        # da dobijemo 
+        cursor.execute(query, (system_id,))
+        solar_system = cursor.fetchone()
+
+        return solar_system
+    
+    except mysql.connector.IntegrityError as err:
+        if err.errno ==1406:
+            raise IlegalValuesException("The values are in invalid fromat")
+        
+    except mysql.connector.OperationalError:
+        connection.rollback()  
+        raise ConnectionException("An connection error occurred while registering the user.") 
+    finally:
+        cursor.close()
+        release_connection(connection) 

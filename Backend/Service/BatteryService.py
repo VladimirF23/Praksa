@@ -53,3 +53,13 @@ def AddSolarSystemToBatteryService(battery_id,system_id) -> bool:
         raise IlegalValuesException("Solar System ID must be a positive integer.")
 
     return AddSolarSystemToBattery(battery_id, system_id)
+
+def GetBatteryDataService(battery_id:int)->dict:
+
+    return 
+
+
+
+def GetBatteryIdBySystemIDService(system_id:int) -> dict:
+
+    return GetBatteryIdBySystemIDService(system_id)
