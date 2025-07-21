@@ -1,2 +1,2 @@
-from RegistrationAPI import *
-from AuthentificationAPI import *
+from .RegistrationAPI import *
+from .AuthentificationAPI import *

@@ -70,6 +70,13 @@ def GetIoTDevicesByUserId(user_id: int) -> list[dict]:
     try:
         cursor.execute(query, (user_id,))
         result = cursor.fetchall()
+
+        # Convert base_consumption_watts to float
+        for device in result:
+                device["base_consumption_watts"] = float(device["base_consumption_watts"])
+                device["added_date"]=     device["added_date"].timestamp()
+
+
         return result
     except Exception as e:
         raise ConnectionException("Failed to fetch IoT devices.") from e

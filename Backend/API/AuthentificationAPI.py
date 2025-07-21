@@ -1,7 +1,7 @@
 from ..Service import *
 from flask import Blueprint, request,jsonify,make_response
 from ..CustomException import *
-from flask_jwt_extended import create_access_token,create_refresh_token,jwt_required,get_jwt,decode_token,set_access_cookies,set_refresh_cookies,get_csrf_token,get_jwt_identity
+from flask_jwt_extended import create_access_token,create_refresh_token,jwt_required,get_jwt,decode_token,set_access_cookies,set_refresh_cookies,get_csrf_token,get_jwt_identity,unset_jwt_cookies
 from datetime import timedelta,datetime
 from extensions import jwt,redis_client   
 
@@ -121,7 +121,7 @@ def login():
         pipe.setex(f"refresh_token:{refresh_jti}",int(timedelta(days=7).total_seconds()),json.dumps(user_metadata_refresh))
 
         #dodajemo sve id tokena koji pripadaju user-u, ukljucujuci i refresh token
-        pipe.sadd(f"user_tokens:{user["user_id"]}", access_jti, refresh_jti)
+        pipe.sadd(f"user_tokens:{user['user_id']}", access_jti, refresh_jti)
 
 
 
@@ -185,6 +185,7 @@ def admin_only():
 @jwt_required()
 def get_current_user_details():
     try:
+        #ovde treba int posto cemo ici do mysql-a
         user_id = int(get_jwt_identity())
 
         # --- Uzimamo potrebne kljuceve za Redis ---
@@ -243,7 +244,7 @@ def get_current_user_details():
                 return jsonify({"error": "User data not found"}), 404
         
         # Solar System Data, uzimamo solar sistem ako postoji validni podaci za user-a 
-        if not solar_system_data and user_data: # Only try if user exists
+        if not solar_system_data and user_data:                                                 # Samo ako user postoji ovo pokusavamo
             solar_system_data_from_db = GetSolarSystemByUserIdService(user_id)
             if solar_system_data_from_db:
                 solar_system_data = solar_system_data_from_db
@@ -278,7 +279,7 @@ def get_current_user_details():
         # --- Phase IV: Pravimo Odgovor ---
         response_data = {
             "user": {
-                "id": user_data.get("user_id"),
+                "user_id": user_data.get("user_id"),
                 "username": user_data.get("username"),
                 "email": user_data.get("email"),
                 "user_type": user_data.get("user_type"),
@@ -318,42 +319,232 @@ def get_current_user_details():
     
 
 
-# ISPRAVI OVO
-
-# Vazno pravilo posto mi je bitno da su podaci svezi cim se user logutuje brisemo i cachirane podatke i brisemo njegov access i refresh token ! mislim da tamo cemo i black listovati !!!
-
-@auth_blueprint.route('/logout', methods=['POST'])
-@jwt_required() # User must be logged in to logout
-def logout():
-    user_id = get_jwt_identity()
+@jwt.token_in_blocklist_loader
+def check_if_token_is_blacklisted(jwt_header, jwt_payload):     #jwt_header sadrzi metadatu od  tokena, algoritam i type, payload sadrzi decodiran body  JWT sa identitetom i CUSTOM CLAIM-ovima
+    jti = jwt_payload["jti"]                                    #jti unique id koji se dodeljuje svakom tokenu prilikom kreatije NIJE isto sto i customClaim
+    return redis_client.get(f"blocked_token:{jti}") =="invalid"   #reddis dekodira odma u string jer sam tako stavio u redis clientu
 
 
-    jti = get_jwt()["jti"]
-    redis_client.setex(jti, current_app.config['JWT_ACCESS_TOKEN_EXPIRES'], "true") # Block access token
-
-    # --- Delete cached user data ---
-    pipe = redis_client.pipeline()
-    pipe.delete(f"user:{user_id}")
-    pipe.delete(f"user_solar_system_id:{user_id}") # Delete the mapping
 
 
-    system_id_str = redis_client.get(f"user_solar_system_id:{user_id}")
-    if system_id_str:
-        system_id = int(system_id_str)
-        pipe.delete(f"solar_system:{system_id}")
-        battery_id_str = redis_client.get(f"solar_system_battery_id:{system_id}")
-        if battery_id_str:
-            battery_id = int(battery_id_str)
-            pipe.delete(f"battery:{battery_id}")
-            pipe.delete(f"solar_system_battery_id:{system_id}") # Delete the battery mapping too
+@auth_blueprint.route('/logout',methods=['POST'])
+@jwt_required()                              #provera da li je jwt token prisutan u headeru/cookiju,proverava potpis i da li je nesto radjeno sa njim, i provera da nije istekao token
+def logout():                                #takoddje raiseuje error ako nema tokena,token je invalid,expired ili revokovan
+    try:
+        jti= get_jwt()["jti"]
+        exp = get_jwt()["exp"]              # da dinamicki postavimo kolko ce u redisu (blacklist) biti token nako sto se logoutuje, postavimo da je timeout trenutno kolko mu je ostalo od original.
+        identity = get_jwt_identity()       # vraca id u string formatu
 
-    pipe.delete(f"user_iot_devices:{user_id}")
-    pipe.execute()
+        #NEMA POTREBE DA identity convertujem u int() jer samo radim operacije nad redisom da sam isao do baze podataka onda bi mi trebao int
 
+        
+
+        #VAZNO je namestimo ttl za blacklist da se ne bi desilo da blacklist istekne a token TTL nastavi da postoji onda je presta da bude blacklistovan ! 
+
+        if not jti or not exp:
+            return jsonify({"error":"Invalid JWT structure"}),400
+
+        ttl = int(exp - datetime.utcnow().timestamp())
+        if ttl < 0:
+            ttl=1       #zbog clock skew, imamo sat na serveru i JWT validatora ako slucajn sad kod JWT kasni za 5 sekundi, ako dobijemo negativan ttl da ne bude error u redisu
+
+        pipe = redis_client.pipeline()
+        pipe.multi()
+
+        #pri logout-u usera blaclistujemo njegov accsess token i refresh token, bolje je blacklistovanj-e nego da ih brisem u access_token i refresh_token  reddis-u
+        # jer bi bilo onda inconsistency ako konkrutetno app pokusa da refresh-uje i validatuje tokene, JWT_required ce izbeci race conditione jel prvo provera blacklist pa tek dozvoljava funk da se izvrsi
+
+
+        pipe.setex(f"blocked_token:{jti}", ttl, "invalid")      #dodamo expiration
+ 
+        #iz seta aktivnih access tokena brisemo acsess tokena od trenutne sesije user-a koja se odjavljuje
+        pipe.srem(f"user_tokens:{identity}", jti)
+
+        #blacklistovanje REFRESH tokena
+
+
+        # Uzmemo refresh token iz cookie-a, ovo je bio prethodni problem sa logout-om jer sam preko ovog verift_jwt_in_request...
+        # ali ga necu verifikovati preko verify_jwt_in_request(refresh=True)
+        # jer @jwt_required() iznad vec brine o autenticnosti
+        # Njegova validacija ce se desiti u okviru pipe.setex ako je prisutan
+        refresh_token_cookie_value = request.cookies.get('refresh_token_cookie')
+
+        if refresh_token_cookie_value: # provera da li postoji uopste refresh_token
+            try:
+                # Dekodiramo refresh token (Flask-JWT-Extended ovo radi sigurno proverava potpis)
+                # Nema potrebe za 'verify_jwt_in_request' ovde jer je cilj samo blacklistovanje
+                # a ne autorizacija pristupa ruti
+                decoded_refresh = decode_token(refresh_token_cookie_value)
+                refresh_jti = decoded_refresh["jti"]
+                refresh_exp = decoded_refresh["exp"]
+
+                ttl_refresh = int(refresh_exp - datetime.utcnow().timestamp())
+                if ttl_refresh < 0:
+                    ttl_refresh = 1 # Minimalni TTL
+
+                pipe.setex(f"blocked_token:{refresh_jti}", ttl_refresh, "invalid")
+                pipe.srem(f"user_tokens:{identity}", refresh_jti) # Ukloni JTI refresh tokena iz seta korisnika
+            except Exception as e:
+                # Loguj grešku ako dekodiranje refresh tokena ne uspe (npr. istekao je ranije, tampered)
+                print(f"Error decoding or blacklisting refresh token during logout: {e}")
+                # Nastavi dalje, jer je glavni cilj logouta postignut (access token je blacklistovan)
+
+
+        # Brisanje cache-a da bi pri login-u dobili fresh data
+        # Brisemo iot
+        pipe.delete(f"user:{identity}")
+        pipe.delete(f"user_iot_devices:{identity}")
+
+        # 
+        # odavde izvucemo solar_system id
+        solar_system_id_str = redis_client.get(f"user_solar_system_id:{identity}")
+        if solar_system_id_str:
+            solar_system_id = int(solar_system_id_str)                                          #nije moralo da se konvertuje
+            pipe.delete(f"solar_system:{solar_system_id}")
+            # ako postoji baterija, brisemo i njen cache
+            battery_id_str = redis_client.get(f"solar_system_battery_id:{solar_system_id}")
+            if battery_id_str:
+                battery_id = int(battery_id_str)
+                pipe.delete(f"battery:{battery_id}")
+                pipe.delete(f"solar_system_battery_id:{solar_system_id}") 
+            pipe.delete(f"user_solar_system_id:{identity}") 
+
+        #izvrsavamo reddis komande atomicno
+        pipe.execute()      
+
+
+        response = make_response(jsonify({"message": "Logged out successfully"}), 200)
+        unset_jwt_cookies(response)  #OVO JE NAJBITNIJE 
+                                     #Ovo šalje instrukcije browser-u da obriše
+                                     # HttpOnly kolačiće (access_token_cookie, refresh_token_cookie, csrf_access_token, csrf_refresh_token)
+
+        # brisemo i refresh zato sto: Ostavljanje refresh cookie znaci da client moze da zatrazi novi acces cookie token silently preko POST /refresh
+        # ako se ne obrise onda: client moze da refresh-uje silently, sto onda ponistava logging out
+
+        #Ovo je kad admin banuje user-a ili sa LOGOUT out of everything
+        # for jti in redis_client.smembers(f"user_tokens:{identity}"):
+        #    redis_client.setex(f"blocked_token:{jti.decode()}", 7 * 24 * 3600, "invalid")  # 7 days
+        #redis_client.delete(f"user_tokens:{identity}")
+
+
+        return response
     
-    response = jsonify({"msg": "Successfully logged out"})
-    unset_jwt_cookies(response) 
+    except redis.RedisError as e:
+        return jsonify({"error":"Redis error","details":str(e)}),500
+    except Exception as e:
+        return jsonify({"error":str(e)}), 500
+    
 
-    return response, 200
+# Kada user-u istekne access token dobice od server not authorized i onda ce axios interceptor probati da refreshuje access token user-a
+# Ovde nema potrebe za cachiranjem podataka user-a,solar system,iot itd.. za to ce biti /me zaduzen
+@auth_blueprint.route('/refresh',methods=['POST'])
+@jwt_required(refresh=True)             #zahteva validan REFRESH token da bi se pristupilo ovoj funkciji
+def refresh():
+    try:
+
+        #uzima od refresh jwt-a INFO, zato sto samo cookie sa refresh tokenom moze da pristupi ovoj funkciji zbog refresh=True
+        #ne moram da unpackujem jwt token in cooki-a to se automatski uradi sa get_jtw_identity
+
+        identity = get_jwt_identity()   # id user-a
+        claims = get_jwt()              # ceo JWT REFRESH TOKEN-a payload ukljucujuci "jti", "exp", "user_type", etc.
+
+        #potrebno je u reddisu invalidatovati stari token i dodati ovaj novi
+        old_refresh_jti  = claims.get("jti")         #unique token id za revocation je koristan
+
+        #Blacklistujemo stari refresh i stari access token, i radimo refresh token rotation tj izdajemo novi refresh token
+
+        # "In JWT-based authentication, tokens are self-contained — meaning they don’t require server-side sessions to validate them. But this also means:
+        #  If a token hasn’t expired, it’s technically still valid even if the user logs out or it’s supposed to be blocked — unless you track and reject it manually".
+        
+        pipe = redis_client.pipeline()
+
+        old_access_token = request.cookies.get("access_token_cookie")  #Blacklistujemo stari ACCESS token kog vadimo iz cookie-a, default ime
+        if old_access_token:                                            
+            try:
+                decoded_old_access = decode_token(old_access_token)    #decode_token ce biti dovoljno siguran zato sto se prenosi preko HTTP samo i CSFR secure je
+                old_access_jti = decoded_old_access["jti"]
+
+                pipe.setex(f"blocked_token:{old_access_jti}",int(timedelta(minutes=30).total_seconds()),"invalid"
+                )
+            except Exception as err:
+                print(f"Old access token decode failed: {err}")
+                pass  # Istekli or malformed token – ignorisemo
+
+         # Blacklistujemo the old refresh token (opcionalno ali bolja sigurnost)
+        pipe.setex(f"blocked_token:{old_refresh_jti}",int(timedelta(days=7).total_seconds()),"invalid")       
+        
+        
+
+        # pravimo novi acsess token
+
+        new_access_token = create_access_token(
+            identity=identity,
+            additional_claims={
+                "username": claims.get("username", ""),           
+                "global_admin": claims.get("global_admin")    
+            },
+            expires_delta=timedelta(minutes=15) 
+        )
+        #novi refresh token pravimo
+        new_refresh_token = create_refresh_token(
+            identity=identity,
+            additional_claims={
+                "username": claims.get("username", ""),           
+                "global_admin": claims.get("global_admin")   
+            },
+            expires_delta=timedelta(days=7) 
+        )
 
 
+        decoded_new_access  = decode_token(new_access_token)
+        decoded_new_refresh = decode_token(new_refresh_token)
+
+        new_jti_access = decoded_new_access["jti"]
+        new_jti_refresh = decoded_new_refresh["jti"]
+
+        # Metadata user-a
+        user_metadata_access = {
+            "user_id": identity,
+            "username": claims.get("username", ""),  # optional: fetch again if needed
+            "user_type": claims.get("user_type"),
+            "status": "valid",
+            "issued_at": decoded_new_access["iat"],
+            "expires": decoded_new_access["exp"]
+        }
+
+        user_metadata_refresh = {
+            "user_id": identity,
+            "username": claims.get("username", ""),  # optional: fetch again if needed
+            "user_type": claims.get("user_type"),
+            "status": "valid",
+            "issued_at": decoded_new_refresh["iat"],
+            "expires": decoded_new_refresh["exp"]
+        }
+
+        # Store new access token by JTI
+        pipe.setex(f"access_token:{new_jti_access}",int(timedelta(minutes=15).total_seconds()),json.dumps(user_metadata_access))
+        pipe.setex(f"refresh_token:{new_jti_refresh}",int(timedelta(days=7).total_seconds()),json.dumps(user_metadata_refresh))
+    
+
+        # dodajemo u set id usera njegov jti
+        pipe.sadd(f"user_tokens:{identity}", new_jti_access, new_jti_refresh)
+
+
+        #executujemo sve reddis komande atomicno 
+        pipe.execute()
+
+        #novi accses stavljamo u secure cookie
+        response = make_response(jsonify({"message": "Access token refreshed"}))
+        set_access_cookies(response, new_access_token)
+        set_refresh_cookies(response,new_refresh_token)
+
+
+
+        
+        return response
+    
+    #mora pre genericno exception-a ovaj redis exception
+    except redis.RedisError as e:
+        return jsonify({"error":"Redis error","details":str(e)}),500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

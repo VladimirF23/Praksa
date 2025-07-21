@@ -5,10 +5,32 @@ from mysql.connector import pooling
 from dotenv import load_dotenv
 import os
 import time
+# MySQLConverter inherits from MySQLConverterBase, so using MySQLConverter is generally fine.
+from mysql.connector.conversion import MySQLConverter, MySQLConverterBase
+
 
 from ..CustomException import *
 
 connection_pool = None
+
+# --- The most robust CustomMySQLConverter Class for DECIMAL to float ---
+class CustomMySQLConverter(MySQLConverter):
+    def _to_python_decimal(self, value):
+        """
+        Converts a MySQL DECIMAL/NUMERIC value to a Python float.
+        This method is specifically called by mysql-connector-python
+        when it encounters a DECIMAL or NEWDECIMAL field.
+        """
+        if value is None:
+            return None
+        try:
+            # The 'value' here is typically a string or a bytes object
+            # representing the decimal number. Python's float() can parse this.
+            return float(value)
+        except (ValueError, TypeError) as e:
+            # Log the error or handle it as appropriate for your application
+            logging.error(f"Error converting DECIMAL to float: {value}. Error: {e}")
+            return None # Or raise a specific error if conversion is critical
 
 
 env_path = os.path.abspath(os.path.join(
@@ -27,6 +49,7 @@ DB_NAME = os.getenv('MYSQL_DB_NAME')
 POOL_NAME = "mysql_connection_pool"
 POOL_SIZE = 10 
 
+
 def initializePool():
     global connection_pool
     try:
@@ -38,7 +61,9 @@ def initializePool():
                 user = DB_USER,
                 port = DB_PORT,
                 password =DB_PASSWORD,
-                database = DB_NAME
+                database = DB_NAME,
+                converter_class=CustomMySQLConverter
+
                 )
 
     #mi cemo kod API-ja hvatati ovaj exception i returnovati  return jsonify({"error": "Internal server error. Please try again later."}), 500

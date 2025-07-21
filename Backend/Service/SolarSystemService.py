@@ -61,4 +61,4 @@ def RegisterSolarSystemService(solar_system: dict, user_id: int, battery_id: int
 
 def GetSolarSystemByUserIdService(user_id:int)->dict:
 
-    return GetSolarSystemByUserId
+    return GetSolarSystemByUserId(user_id)

@@ -54,7 +54,7 @@ def RegisterIoTService(devices: list[dict], user_id: int, system_id: int)->bool:
         raise IlegalValuesException(" ".join(all_errors))
     
 
-    return RegisterIoTService(validated_devices, user_id, system_id)
+    return RegisterIoTDevices(validated_devices, user_id, system_id)
     
 
 #vratimo sve IoT koji pripadju user-u bitan nam je njhiv id

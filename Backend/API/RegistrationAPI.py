@@ -3,7 +3,9 @@ from flask import Blueprint, request,jsonify,make_response
 from ..CustomException import *
 from flask_jwt_extended import create_access_token,create_refresh_token,jwt_required,get_jwt,decode_token,set_access_cookies,set_refresh_cookies,get_csrf_token
 from datetime import timedelta,datetime
-from extensions import jwt,redis_client   
+from extensions import jwt,redis_client
+from decimal import Decimal 
+
 
 import redis
 
@@ -132,7 +134,7 @@ def register_user():
         
         #ovde se mora updejtovati ako postoji baterija
         if battery_db:
-            AddSolarSystemToBatteryService(battery_id,solar_system_data["system_id"])
+            AddSolarSystemToBatteryService(battery_id,solar_system_db["system_id"])
 
             #ovde takodje zbog cache-a posle
             battery_db["system_id"] = solar_system_db["system_id"]
@@ -168,7 +170,7 @@ def register_user():
         #treba nam njihov id 
 
         access_token = create_access_token(
-            identity=str(user_db["id"]),                                               #postavlje se id (broj) user-a za jedinstveni broj access_token-a zato sto se id nikad nece menjati a username se moze menjati
+            identity=str(user_db["user_id"]),                                               #postavlje se id (broj) user-a za jedinstveni broj access_token-a zato sto se id nikad nece menjati a username se moze menjati
             additional_claims={
                 "username": user_db["username"],           
                 "user_type": user_db["user_type"]  # Changed from "global_admin"
@@ -177,7 +179,7 @@ def register_user():
         )
         
         refresh_token = create_refresh_token(
-            identity=str(user_db["id"]),
+            identity=str(user_db["user_id"]),
             additional_claims={
                 "username": user_db["username"],           
                 "user_type": user_db["user_type"]  # Changed from "global_admin"
@@ -196,7 +198,7 @@ def register_user():
         # na foru ove funkcije  @jwt.token_in_blocklist_loader def check_if_token_is_blacklisted(jwt_header, jwt_payload):
         # al to tek kasnije 
         user_metadata_access = {
-            "user_id": user_db["id"], 
+            "user_id": user_db["user_id"], 
             "username": user_db["username"],
             "user_type": user_db["user_type"], 
             "status": "valid",                      # Kljucno za revokaciju
@@ -205,7 +207,7 @@ def register_user():
             "type" : "access_token"
         }
         user_metadata_refresh = {
-            "user_id": user_db["id"], 
+            "user_id": user_db["user_id"], 
             "username": user_db["username"], 
             "user_type": user_db["user_type"], 
             "status": "valid", 
@@ -224,7 +226,7 @@ def register_user():
         pipe.setex(f"refresh_token:{refresh_jti}",int(timedelta(days=7).total_seconds()),json.dumps(user_metadata_refresh))
 
         #dodajemo sve id tokena koji pripadaju user-u, ukljucujuci i refresh token
-        pipe.sadd(f"user_tokens:{user_db["id"]}", access_jti, refresh_jti)
+        pipe.sadd(f"user_tokens:{user_db['user_id']}", access_jti, refresh_jti)
 
         #npr alice je logovan-a sa 2 razlicita device-a (ili sesije) svaka sesija dobija access token i refresh token, (nisam refresh napisao)
         #  Redis Key	                  Stored Value (simplified JSON)	                                                TTL
@@ -245,12 +247,12 @@ def register_user():
             "username": user_db["username"],
             "email": user_db["email"],
             "user_type": user_db["user_type"],
-            "global_admin": user_db["global_admin"], # Important for authorization checks
             "house_size_sqm": user_db["house_size_sqm"],
             "num_household_members": user_db["num_household_members"],
             "latitude": user_db["latitude"],
             "longitude": user_db["longitude"],
-            "last_cached_at": datetime.now().timestamp()
+            "registration_date": user_db["registration_date"],              #bice u fomratu tipa 1753104047.0 sto je validno posto ovo moze da se json dumpuje u redis, govori kolko vremena je proslo od 1970 ....
+            "last_cached_at": datetime.now().timestamp()                        
         }
         # TTL za user podatke, 1 sat (3600 seconds)
         pipe.setex(f"user:{user_id}", 3600, json.dumps(user_cache_data))
@@ -293,8 +295,8 @@ def register_user():
             pipe.setex(f"battery:{battery_id}", 1800, json.dumps(battery_cache_data))
             pipe.set(f"solar_system_battery_id:{solar_system_id}", str(battery_id))                       # da bih preko system_id mogao da dobavim podatke o bateriji
 
-        # 5. Cache IoT Devices Data (if exists)
-        if iot_devices_db:
+        # 5. Cache IoT Devices Data (ako postoje)
+        if iot_devices_data:
             # Cache  cele liste IoT devices od user-a
             # Posle pogledaj da li treba individualno cachiranje IoT device-a
             iot_devices_list_cache = {

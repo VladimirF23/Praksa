@@ -59,6 +59,11 @@ def RegisterBattery(battery: dict) -> dict:
         cursor.execute(select_query, (new_battery_id,))
         inserted_battery = cursor.fetchone()
 
+        inserted_battery["capacity_kwh"] =               float(inserted_battery["capacity_kwh"])
+        inserted_battery["max_charge_rate_kw"] =         float(inserted_battery["max_charge_rate_kw"])
+        inserted_battery["max_discharge_rate_kw"] =      float(inserted_battery["max_discharge_rate_kw"])
+        inserted_battery["efficiency"] =                 float(inserted_battery["efficiency"])
+        inserted_battery["current_charge_percentage"] =  float(inserted_battery["current_charge_percentage"])
 
         return inserted_battery                           #vratimo celu bateriju kao dict 
 
@@ -153,6 +158,15 @@ def GetBatteryData(battery_id: int) ->dict:
     try:
         cursor.execute(query, (battery_id,))
         battery = cursor.fetchone()
+
+        battery["capacity_kwh"] =               float(battery["capacity_kwh"])
+        battery["max_charge_rate_kw"] =         float(battery["max_charge_rate_kw"])
+        battery["max_discharge_rate_kw"] =      float(battery["max_discharge_rate_kw"])
+        battery["efficiency"] =                 float(battery["efficiency"])
+        battery["current_charge_percentage"] =  float(battery["current_charge_percentage"])
+
+
+
         return battery
 
     except mysql.connector.Error as err: # Catch generic MySQL errors for robustness
@@ -176,9 +190,15 @@ def GetBatteryIdBySystemIDService(system_id:int)->dict:
 
         # da dobijemo 
         cursor.execute(query, (system_id,))
-        solar_system = cursor.fetchone()
+        battery = cursor.fetchone()
 
-        return solar_system
+        battery["capacity_kwh"] = float(battery["capacity_kwh"])
+        battery["max_charge_rate_kw"] = float(battery["max_charge_rate_kw"])
+        battery["max_discharge_rate_kw"] = float(battery["max_discharge_rate_kw"])
+        battery["efficiency"] = float(battery["efficiency"])
+        battery["current_charge_percentage"] = float(battery["current_charge_percentage"])
+
+        return battery
     
     except mysql.connector.IntegrityError as err:
         if err.errno ==1406:

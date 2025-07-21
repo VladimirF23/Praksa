@@ -53,7 +53,21 @@ def RegisterUser(user:dict) ->dict:
 
         # da dobijemo 
         cursor.execute(select_query, (user_id,))
+
+
+
+
         inserted_user = cursor.fetchone()
+
+        inserted_user["house_size_sqm"] = float(inserted_user["house_size_sqm"])
+        inserted_user["latitude"] =       float(inserted_user["latitude"])
+        inserted_user["longitude"] =      float(inserted_user["longitude"])
+
+        inserted_user["registration_date"]=     inserted_user["registration_date"].timestamp()
+
+
+        del inserted_user["password_hash"]
+
 
         return inserted_user
     
@@ -87,6 +101,12 @@ def GetUserById(user_id:int)->dict:
         # da dobijemo 
         cursor.execute(query, (user_id,))
         user_db = cursor.fetchone()
+
+        user_db["house_size_sqm"] = float(user_db["house_size_sqm"])
+        user_db["latitude"] =       float(user_db["latitude"])
+        user_db["longitude"] =      float(user_db["longitude"])
+        user_db["registration_date"]=     user_db["registration_date"].timestamp()
+
 
         return user_db
     
@@ -130,6 +150,11 @@ def GerUserCredentials(userCredentials: dict):
             raise NotFoundException("Username/password not valid")
         
 
+        #konverzije zato sto Mysql cuva u glupom Decimal(,)
+        user["house_size_sqm"] = float(user["house_size_sqm"])
+        user["latitude"] =       float(user["latitude"])
+        user["longitude"] =      float(user["longitude"])
+        user["registration_date"]=     user["registration_date"].timestamp()
         #ovo je izvuceno iz mysql
         db_hashed = user["password_hash"]
 

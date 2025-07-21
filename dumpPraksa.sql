@@ -19,9 +19,23 @@ CREATE TABLE users (
 
 );
 
+-- 2. Batteries Table (Opcionalno ali je dobro jel mogu da bolje opisem bateriju)
+-- NA FRONTENDU OGRANICI  2 tipa baterija sa odredjinim kapacitetima i onda cu dozvoliti da user samo moze da registruja 1 od ta 2 tipa, a u bazi podataka ce oni imati razlicite id-eve
+-- da bi mogao da 
+CREATE TABLE batteries (
+    battery_id INT AUTO_INCREMENT PRIMARY KEY,
+    system_id INT UNIQUE,                                               -- Osiguramo da 1 solarni sistem moze max 1 bateriju da ima, takodje moze biti null ako solarni system jos nije kreiran
+    model_name VARCHAR(255),                                            -- i tako nemamo onu zavisnost minimalnog kardinaliteta da je 1 vec je sada 0 
+    capacity_kwh DECIMAL(10, 2) NOT NULL,                               -- Kapacitet u Kilowat casovima
+    max_charge_rate_kw DECIMAL(10, 2),                                  -- Max snaga punjenja u kW   -> detaljnije istrazi o ovim parametrima
+    max_discharge_rate_kw DECIMAL(10, 2),                               -- Max snaga praznjenja u kW
+    efficiency DECIMAL(4, 2),                                           -- Punjenje/praznjenje efikanost (e.g., 0.95 for 95%)
+    manufacturer VARCHAR(255),
+    current_charge_percentage DECIMAL(5,2) DEFAULT 0.00                -- Trenutna napunjenost baterije u %
+ 
+);
 
-
--- 2. SolarSystems Table
+-- 3. SolarSystems Table
 -- Cuvamo informacije o korisnikovoj konfiguraciji solarnog sistema
 -- Korsnik moze da ima samo JEDNU aktivnu solarnu konfiguraciju (radi manje kompleksnosti DB-a i aplikacije) ovo enforce-uje UNIQUE(user_id)
 CREATE TABLE solar_systems (
@@ -45,21 +59,7 @@ CREATE TABLE solar_systems (
 );
 
 
--- 3. Batteries Table (Opcionalno ali je dobro jel mogu da bolje opisem bateriju)
--- NA FRONTENDU OGRANICI  2 tipa baterija sa odredjinim kapacitetima i onda cu dozvoliti da user samo moze da registruja 1 od ta 2 tipa, a u bazi podataka ce oni imati razlicite id-eve
--- da bi mogao da 
-CREATE TABLE batteries (
-    battery_id INT AUTO_INCREMENT PRIMARY KEY,
-    system_id INT UNIQUE,                                               -- Osiguramo da 1 solarni sistem moze max 1 bateriju da ima, takodje moze biti null ako solarni system jos nije kreiran
-    model_name VARCHAR(255),                                            -- i tako nemamo onu zavisnost minimalnog kardinaliteta da je 1 vec je sada 0 
-    capacity_kwh DECIMAL(10, 2) NOT NULL,                               -- Kapacitet u Kilowat casovima
-    max_charge_rate_kw DECIMAL(10, 2),                                  -- Max snaga punjenja u kW   -> detaljnije istrazi o ovim parametrima
-    max_discharge_rate_kw DECIMAL(10, 2),                               -- Max snaga praznjenja u kW
-    efficiency DECIMAL(4, 2),                                           -- Punjenje/praznjenje efikanost (e.g., 0.95 for 95%)
-    manufacturer VARCHAR(255)
-    current_charge_percentage DECIMAL(5,2) DEFAULT 0.00                -- Trenutna napunjenost baterije u %
- 
-);
+
 
 
 -- 4. IoT_Devices Table

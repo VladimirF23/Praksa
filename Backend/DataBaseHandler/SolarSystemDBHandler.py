@@ -66,6 +66,10 @@ def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> dict:
         cursor.execute(select_query, (system_id,))
         inserted_solarSystem = cursor.fetchone()
 
+        #da bi moglo u redisu da se jsondumpuje zbog glupavog Decimal u Mysql...
+        inserted_solarSystem["total_panel_wattage_wp"] = float(inserted_solarSystem["total_panel_wattage_wp"])
+        inserted_solarSystem["inverter_capacity_kw"] = float(inserted_solarSystem["inverter_capacity_kw"])
+        inserted_solarSystem["base_consumption_kwh"] = float(inserted_solarSystem["base_consumption_kwh"])
 
         return inserted_solarSystem                 
 
@@ -104,6 +108,12 @@ def GetSolarSystemByUserId(user_id:int)->dict:
         cursor.execute(query, (user_id,))
         solar_system = cursor.fetchone()
 
+        solar_system["total_panel_wattage_wp"] = float(solar_system["total_panel_wattage_wp"])
+        solar_system["inverter_capacity_kw"] = float(solar_system["inverter_capacity_kw"])
+        solar_system["base_consumption_kwh"] = float(solar_system["base_consumption_kwh"])
+
+
+        
         return solar_system
     
     except mysql.connector.IntegrityError as err:

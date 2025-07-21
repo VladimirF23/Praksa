@@ -21,7 +21,7 @@ redis_password = os.getenv("REDIS_PASSWORD")
 
 #Redis localhost port je setupovan u Config-u  stavi ovo da se conectuje na redis conteiner
 redis_client = redis.StrictRedis(
-    host="redis",       #ime service
+    host="redis-praksa",       #ime service
     port=6379,
     password= redis_password, 
     decode_responses=True  # Automatically decode strings da ne budu u byte-ovima
