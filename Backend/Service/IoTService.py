@@ -5,11 +5,11 @@ from ..DataBaseHandler import *
 
 def RegisterIoTService(devices: list[dict], user_id: int, system_id: int)->bool:
     """
-    Validates a list of IoT device dictionaries and delegates insertion to the DBHandler.
+    Validira listu IoT uredjaja (dictionaries) i delegira insertion ka DBHandleru
 
-    :param devices: List of dicts with device info
-    :param user_id: ID of the user registering devices
-    :param solar_system_id: ID of the solar system the devices belong to
+    :param devices: Lista dictionari-a sa device info
+    :param user_id: ID korisnika koji poseduje ove IoT
+    :param solar_system_id: ID solarnog sistema kom IoT pripada
     """
     if not devices or not isinstance(devices, list):
         raise IlegalValuesException("You must provide a list of at least one IoT device.")
@@ -24,7 +24,7 @@ def RegisterIoTService(devices: list[dict], user_id: int, system_id: int)->bool:
         priority_level         = device.get("priority_level", "medium")
         current_status         = device.get("current_status", "off")
         is_smart_device        = device.get("is_smart_device", False)
-
+        
         errors = []
 
         if not device_name:

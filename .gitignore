@@ -185,3 +185,17 @@ cython_debug/
 
 devinfoJWT.env
 configJWT.py
+
+# Ignorisemo SSL certificates i private keys
+nginx/certs/*.pem
+nginx/certs/*.key
+nginx/certs/*.crt
+nginx/certs/*.p12
+nginx/certs/*.der
+nginx/certs/*.csr
+
+# Ignore any mkcert output (just in case)
+nginx/certs/*mkcert*
+
+#Da moze readme.md instrukcija za ssl certifikat da se komitije
+!nginx/certs/README.md

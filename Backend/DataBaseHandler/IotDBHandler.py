@@ -7,7 +7,7 @@ from ..CustomException import *
 # BATCH Inserion radimo
 def RegisterIoTDevices(iot_devices: list[dict], user_id: int, system_id: int) -> bool:
     """
-    Registruje više IoT uređaja odjednom. Povezuje uređaje sa korisnikom i (opcionalno) sa solarnim sistemom.
+    Registruje vise IoT uredjaja odjednom Povezuje uredjaje sa korisnikom i (opcionalno) sa solarnim sistemom
 
     solart_system_id == system_id
     """

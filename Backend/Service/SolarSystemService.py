@@ -4,13 +4,13 @@ from ..DataBaseHandler import *                #importujemo DataBase Handlere, t
 
 def RegisterSolarSystemService(solar_system: dict, user_id: int, battery_id: int = None) -> dict:
     """
-    Servis za registraciju solarnog sistema.
-    Validira podatke, i prosleđuje ih ka bazi podataka.
+    Servis za registraciju solarnog sistema
+    Validira podatke, i prosledjuje ih ka bazi podataka
     
-    Vraća ID novounetog solarnog sistema, kako bi se mogao povezati sa baterijom.
+    Vraca ID novounetog solarnog sistema, kako bi se mogao povezati sa baterijom
 
     Raises:
-        IlegalValuesException: Ako su vrednosti nevalidne.
+        IlegalValuesException: Ako su vrednosti nevalidne
     """
 
 

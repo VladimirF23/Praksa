@@ -57,6 +57,37 @@ services:
       - redis-data-praksa:/data                                        # mountujemo redis volume unutar data foldera u container-u da bi imali perzisenticiju podataka koji se cuvaju u volume-u
 
 
+                                                                       
+  react_frontend-praksa:                                               # React frontend ce se IZBACITI za production posto ce nginx servovati  pre-built static fajlove iz mount-ovanog volume
+    build: 
+      context: ./Frontend                                              # Lokacija DockerFile-a
+    volumes:
+    - ./Frontend/my-app:/app                                           # Mountujemo 'my-app' folder sa mog kompjutera u '/app' unutar container
+    - react_node_modules-praksa:/app/node_modules                      # react_node_modules je docker volume koji ce docker menagovati i koji ce spreciti node_modules da budu overwritovani ako se code promeni lokalno reflectovace se u containeru ali se dependecy nece wipovati
+    command: ["npm", "start"]                   
+    container_name: react_frontend-praksa
+    ports:
+      - "3000:3000"
+    networks:
+      - frontend-network-praksa      
+
+  nginx-praksa:
+    build:
+      context: ./nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - flask-app-praksa
+      - react_frontend-praksa
+    networks:
+      - frontend-network-praksa
+      - backend-network-praksa
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro                     # mount-ujemo  config za development
+      - ./nginx/certs:/etc/nginx/certs:ro                               #ovako je najbolje zbog sigurnosti, napisao sam u nginx docker file zato da ne koristim COPY tih cert, ro ->read only
+
+
 networks:
   backend-network-praksa:                                              # koristimo takodje 2 networka zbog bezbednosti NGINX ce imati pristup oba ali sa interneta se nece moci direktno pristupiti backendu bez da se prodje NGINX proxy 
       driver: bridge                                                   # koristi dockerov bridge network mode -> conteineri na ovom networku mogu izmedju sebe da komunciraju jedni sa drugima izolovani od host machine
@@ -65,4 +96,5 @@ networks:
 
 volumes:
     mysql_db-data-praksa:                  
-    redis-data-praksa:                    
+    redis-data-praksa:
+    react_node_modules-praksa:                    
