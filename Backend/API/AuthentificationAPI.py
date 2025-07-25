@@ -65,7 +65,7 @@ def login():
             identity=str(user["user_id"]),
             additional_claims={
                 "username": user["username"],           
-                "user_type": user["user_type"]  # Changed from "global_admin"
+                "user_type": user["user_type"]  
             },
             expires_delta=timedelta(minutes=15) # 20 sekundi za testiranje
         )
@@ -74,7 +74,7 @@ def login():
             identity=str(user["user_id"]),
             additional_claims={
                 "username": user["username"],           
-                "user_type": user["user_type"]  # Changed from "global_admin"
+                "user_type": user["user_type"]  # 
             },
             expires_delta=timedelta(days=7) 
         )

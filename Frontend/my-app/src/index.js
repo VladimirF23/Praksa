@@ -3,11 +3,20 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import {Provider} from 'react-redux';  //da bi app mogao da pristupi Redux store-u
+import store  from './app/store';   //importujemo store koji smo konfigurisali sa nasim reducer-ima
+
+
+
+//wrapujemo app sa Provider da bi redux store bio dostupan svakoj component-u unutar APP-a
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <Provider store={store}>      
+      <App />
+
+    </Provider>
   </React.StrictMode>
 );
 

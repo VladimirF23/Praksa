@@ -175,7 +175,7 @@ def register_user():
                 "username": user_db["username"],           
                 "user_type": user_db["user_type"]  # Changed from "global_admin"
             },
-            expires_delta=timedelta(minutes=15) # 20 sekundi za testiranje
+            expires_delta=timedelta(minutes=15) # 10 sekundi za testiranje
         )
         
         refresh_token = create_refresh_token(
@@ -184,7 +184,7 @@ def register_user():
                 "username": user_db["username"],           
                 "user_type": user_db["user_type"]  # Changed from "global_admin"
             },
-            expires_delta=timedelta(days=7) 
+            expires_delta=timedelta(days=7)     #15 sekundi za testiranje
         )
 
         decoded_access  = decode_token(access_token)
