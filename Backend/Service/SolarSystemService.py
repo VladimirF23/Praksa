@@ -34,9 +34,9 @@ def RegisterSolarSystemService(solar_system: dict, user_id: int, battery_id: int
     if not isinstance(inverter_capacity_kw, (int, float)) or inverter_capacity_kw <= 0:
         raise IlegalValuesException("Inverter capacity must be a positive number.")
 
-    base_consumption_kwh = solar_system.get("base_consumption_kwh")
+    base_consumption_kw = solar_system.get("base_consumption_kw")
 
-    if not isinstance(base_consumption_kwh, (int, float)) or base_consumption_kwh <= 0:
+    if not isinstance(base_consumption_kw, (int, float)) or base_consumption_kw <= 0:
         raise IlegalValuesException("base consumption kwh  must be a positive number.")
 
     # battery_id: ako je sistem 'grid_tied' onda baterija ne sme biti prosledjena
@@ -46,14 +46,25 @@ def RegisterSolarSystemService(solar_system: dict, user_id: int, battery_id: int
     # Ako je sistem 'grid_tied_hybrid' baterija mora biti prosledjena
     if system_type == "grid_tied_hybrid" and battery_id is None:
         raise IlegalValuesException("Hybrid systems must have a battery assigned.")
-
     
+    tilt_degrees = solar_system.get("tilt_degrees")
+    if not (0 <= tilt_degrees <= 90):
+        raise ValueError("Tilt degrees must be between 0 and 90.")
+    
+
+    azimuth_degrees = solar_system.get("azimuth_degrees")
+    if not (0 <= azimuth_degrees <= 359): 
+        raise ValueError("Azimuth degrees must be between 0 and 359.")
+    
+
     solar_data_for_db = {
         "system_name": system_name,
         "system_type": system_type,
         "total_panel_wattage_wp": total_panel_wattage_wp,
         "inverter_capacity_kw": inverter_capacity_kw,
-        "base_consumption_kwh":base_consumption_kwh
+        "base_consumption_kw":base_consumption_kw,
+        "tilt_degrees":tilt_degrees,
+        "azimuth_degrees":azimuth_degrees
     }
 
     return RegisterSolarSystem(solar_data_for_db, user_id, battery_id)

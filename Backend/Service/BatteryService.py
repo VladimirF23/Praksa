@@ -56,7 +56,8 @@ def AddSolarSystemToBatteryService(battery_id,system_id) -> bool:
 
 def GetBatteryDataService(battery_id:int)->dict:
 
-    return 
+    return  GetBatteryData(battery_id)
+
 
 
 

@@ -17,7 +17,11 @@ def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> dict:
     system_type             = solar_system["system_type"]  # 'grid_tied' ili 'grid_tied_hybrid'
     total_panel_wattage_wp  = solar_system["total_panel_wattage_wp"]
     inverter_capacity_kw    = solar_system["inverter_capacity_kw"]
-    base_consumption_kwh    = solar_system["base_consumption_kwh"]
+    base_consumption_kw     = solar_system["base_consumption_kw"]
+
+    azimuth_degrees         = solar_system["azimuth_degrees"]
+    tilt_degrees            = solar_system["tilt_degrees"]
+
     exception_messages = []
 
     if not system_name:
@@ -28,17 +32,23 @@ def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> dict:
         exception_messages.append("Total panel wattage can't be NULL.")
     if not inverter_capacity_kw:
         exception_messages.append("Inverter capacity can't be NULL.")
-    if not base_consumption_kwh:
+    if not base_consumption_kw:
         exception_messages.append("Base consumption can't be NULL.")
+    if not azimuth_degrees:
+        exception_messages.append("Azimuth degrees can't be NULL.")
+    if not tilt_degrees:
+        exception_messages.append("Tilt degrees can't be NULL.")
+
+
     if exception_messages:
         raise IlegalValuesException(" ".join(exception_messages))
 
 
     query = """
     INSERT INTO solar_systems 
-        (user_id, system_name, system_type, total_panel_wattage_wp, inverter_capacity_kw, battery_id,base_consumption_kwh)
+        (user_id, system_name, system_type, total_panel_wattage_wp, inverter_capacity_kw, battery_id,base_consumption_kw,azimuth_degrees,tilt_degrees)
     VALUES 
-        (%s, %s, %s, %s, %s, %s,%s)
+        (%s, %s, %s, %s, %s, %s,%s,%s,%s)
     """
 
     select_query="""
@@ -56,7 +66,9 @@ def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> dict:
             total_panel_wattage_wp,
             inverter_capacity_kw,
             battery_id,  # moze biti None → NULL u bazi
-            base_consumption_kwh
+            base_consumption_kw,
+            azimuth_degrees,
+            tilt_degrees
         ))
         connection.commit()
 
@@ -69,7 +81,7 @@ def RegisterSolarSystem(solar_system:dict,user_id:int, battery_id:int) -> dict:
         #da bi moglo u redisu da se jsondumpuje zbog glupavog Decimal u Mysql...
         inserted_solarSystem["total_panel_wattage_wp"] = float(inserted_solarSystem["total_panel_wattage_wp"])
         inserted_solarSystem["inverter_capacity_kw"] = float(inserted_solarSystem["inverter_capacity_kw"])
-        inserted_solarSystem["base_consumption_kwh"] = float(inserted_solarSystem["base_consumption_kwh"])
+        inserted_solarSystem["base_consumption_kw"] = float(inserted_solarSystem["base_consumption_kw"])
 
         return inserted_solarSystem                 
 
@@ -110,7 +122,7 @@ def GetSolarSystemByUserId(user_id:int)->dict:
 
         solar_system["total_panel_wattage_wp"] = float(solar_system["total_panel_wattage_wp"])
         solar_system["inverter_capacity_kw"] = float(solar_system["inverter_capacity_kw"])
-        solar_system["base_consumption_kwh"] = float(solar_system["base_consumption_kwh"])
+        solar_system["base_consumption_kw"] = float(solar_system["base_consumption_kw"])
 
 
         

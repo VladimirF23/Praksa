@@ -16,8 +16,15 @@ except redis.ConnectionError:
     raise Exception("Failed to connect to Redis.")
 
 def calculate_base_consumption(house_size_m2, household_members):
-    # Osnovna logika (moze se prilagoditi)
-    return (house_size_m2 * 0.05) + (household_members * 1.5)
+    # Ova funkcija aproksimira trenutnu realnu Potrosnju domacinstva u KILOVATIMA (kW). Mesecna i dnevna se izrzavaju u kW/h
+    # nama je potrebna trenutna zato se bavimo realnim vremenom
+    # ovde spadaju uredjaji koji su stalno ukljuceni 
+
+    # 0.01 se tumači kao 0.01 kW po kvadratnom metru.
+    # 0.3 se tumači kao 0.3 kW po clanu domaćinstva.
+
+    #Za 100 m² kucu i 4 osobe: (100×0.01)+(4×0.3)=1.0+1.2=2.2 kW. Realno bez jakih potrosaca
+    return (house_size_m2 * 0.01) + (household_members * 0.3)
 
 #metoda je post jer POST drzi sensitive data (email/password) u request body a on nije logovan u browser history
 registration_blueprint = Blueprint('registration',__name__,url_prefix='/registration')
@@ -115,14 +122,16 @@ def register_user():
 
         
 
-        base_consumption_kwh =calculate_base_consumption(user_db["house_size_sqm"], user_db["num_household_members"])
+        base_consumption_kw =calculate_base_consumption(user_db["house_size_sqm"], user_db["num_household_members"])
 
         solar_system_data = {
         "system_name": data.get("system_name"),
         "system_type": data.get("system_type"),  # must be 'grid_tied' or 'grid_tied_hybrid'
         "total_panel_wattage_wp": data.get("total_panel_wattage_wp"),
         "inverter_capacity_kw": data.get("inverter_capacity_kw"),
-        "base_consumption_kwh": base_consumption_kwh
+        "azimuth_degrees":data.get("azimuth_degrees"),
+        "tilt_degrees":data.get("tilt_degrees"),
+        "base_consumption_kw": base_consumption_kw
         }
 
 
@@ -269,6 +278,9 @@ def register_user():
             "total_panel_wattage_wp": solar_system_db["total_panel_wattage_wp"],
             "inverter_capacity_kw": solar_system_db["inverter_capacity_kw"],
             "base_consumption_kwh": solar_system_db["base_consumption_kwh"],
+            "tilt_degrees": solar_system_db["tilt_degrees"],
+            "azimuth_degrees": solar_system_db["azimuth_degrees"],
+
             "last_cached_at": datetime.now().timestamp()
         }
 

@@ -49,6 +49,7 @@ def login():
             if solar_system_data.get('battery_id'):
                 redis_client.set(f"solar_system_battery_id:{solar_system_data['system_id']}", str(solar_system_data['battery_id']))
 
+                
                 battery_data = GetBatteryDataService(solar_system_data['battery_id'])
                 if battery_data:
                     redis_client.setex(f"battery:{solar_system_data['battery_id']}", 1800, json.dumps(battery_data))

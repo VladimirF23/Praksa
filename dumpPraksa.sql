@@ -26,7 +26,7 @@ CREATE TABLE batteries (
     battery_id INT AUTO_INCREMENT PRIMARY KEY,
     system_id INT UNIQUE,                                               -- Osiguramo da 1 solarni sistem moze max 1 bateriju da ima, takodje moze biti null ako solarni system jos nije kreiran
     model_name VARCHAR(255),                                            -- i tako nemamo onu zavisnost minimalnog kardinaliteta da je 1 vec je sada 0 
-    capacity_kwh DECIMAL(10, 2) NOT NULL,                               -- Kapacitet u Kilowat casovima
+    capacity_kwh DECIMAL(10, 2) NOT NULL,                               -- Kapacitet, max energije koliko staje u bateriju u kWh (kilo wat casovima)
     max_charge_rate_kw DECIMAL(10, 2),                                  -- Max snaga punjenja u kW   -> detaljnije istrazi o ovim parametrima
     max_discharge_rate_kw DECIMAL(10, 2),                               -- Max snaga praznjenja u kW
     efficiency DECIMAL(4, 2),                                           -- Punjenje/praznjenje efikanost (e.g., 0.95 for 95%)
@@ -46,7 +46,12 @@ CREATE TABLE solar_systems (
     total_panel_wattage_wp DECIMAL(10, 2) NOT NULL,                   -- Total Watt-peak kapacitet za sve panele (e.g., 5000 for 5kW)
     inverter_capacity_kw DECIMAL(10, 2) NOT NULL,                     -- Inverter kapacitet u kW
     battery_id INT NULL,                                              -- Foreign kljuc ka bateries tabeli ako je hibridni sistem (zato je dozvoljeno null ako nije hib. onda nema bateriju)
-    base_consumption_kwh DECIMAL(10, 2) NOT NULL,                     -- Dodato novo polje (izracunato iz m^2 i broja članova)
+    base_consumption_kw DECIMAL(10, 2) NOT NULL,                      --  izracunato iz m^2 i broja članova, izrazena u kW jer predstavlja stalnu potrosnju tj min snagu koja je potrebna za rad osnovnih uredjaja domacinstvu
+                                                                      -- Nije u kWh (kilowat casovima) posto oni se koriste za ukupnu potrosnju/proizvodnju energije tokom nekog PERIODA (dnevna potrsnja/ mesecna)
+
+    tilt_degrees INT,                                                 -- Nagib panela u stepenima (0-90, 0=horizontalno, 90=vertikalno)
+    azimuth_degrees INT,                                              -- Azimut panela u stepenima (0-359, 180=jug, 90=istok, 270=zapad, 0/360=sever)
+
 
 
     -- FOREIGN KEY Constraint-ovi                                     -- Podsetnik strani kljuc obezbedjuje: da vrednosti u jednoj tabeli odgovaraju vrednostima u drugoj tabeli tj da nema sirocadi, user_id u ovoj tabeli mora postojati u tabeli users
