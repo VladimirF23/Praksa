@@ -1,8 +1,21 @@
-from ..DataBaseHandler import *
+
 #Service/SimulationService.py
 #najbolje da koristis onu INSTANT opciju za ove parametre tako ces dobiti najbolje podatke
 
-#TODO dodaj azimuth i tilt (int) u Solar System config i dodaj u authentification i registration
+# Funkcije nisu dirketno povezane (da jedna drugu zovu unutar racunanje zato sto onda unit testovi ne bi bili moguci za razlicite podatke)
+# Ali ce se ovim redom pozivati da bi dobili zeljene stvari
+
+# 1.Izracunaj solar_production_kw.
+
+# 2.Izracunaj household_consumption_kw.
+
+# 3.Izracunaj net_power_kw = solar_production_kw - household_consumption_kw.
+
+# 4.Pozovi update_battery_charge sa net_power_kw da dobiješ new_charge_percentage i actual_battery_flow_kw.
+
+# 5.Pozovi calculate_grid_contribution sa solar_production_kw, household_consumption_kw i actual_battery_flow_kw.
+
+
 
 # 1. Irradience (zracenje) vs Radiation (Energije Zracenja)
 #   a) Irradience: Snaga po jedinic povrsine, obicno u wat-ima po kvadratnom metru (W/m^2), ovo je TRENUTNA vrednost, ovo je kao koliko je sunce jako u ovom trenutku
@@ -49,7 +62,7 @@ def calculate_solar_production(solar_system_config: dict, weather_data: dict) ->
     Formula:
         P_solarna_kW = P_nominalna_Wp * (I_STVARNA / I_STC) * Eff_sistema * Eff_temp
         
-        P_solarna_kW   ->  Trenutna solarna proizvodnja u kilovatima (kW). To je rezultat koji želimo da dobijemo.
+        P_solarna_kW   ->  Trenutna solarna proizvodnja u kilovatima (kW). To je rezultat koji zelimo da dobijemo.
         P_nominalna_Wp ->  Nominalna snaga panela u wat-pikovima (Wp), Proizvodjaci solarnih panela odredjuju ovu snagu pod Standardnim uslovima, ovo su idealni labaratorisjki uslovi, Temp panela 25 C i solarno zracenje 1000 W/m^2, predstavlja nominalni zbir svih panela u korisnikovom sistemu
         .                  To je max snaga koju sistem moze da proizvede u idealnim uslovima
 
@@ -93,7 +106,7 @@ def calculate_solar_production(solar_system_config: dict, weather_data: dict) ->
 
 
     # Dobijanje kapaciteta invertera iz konfiguracije sistema (kW)
-    # Inverter je usko grlo; ne može da obradi više snage od svog kapaciteta.
+    # Inverter je usko grlo; ne moze da obradi više snage od svog kapaciteta.
     inverter_capacity_kw = solar_system_config.get("inverter_capacity_kw", 0.0)
 
     #Nominalna snaga panela iz konfiguracije sistema Wp - Watt-peak
@@ -134,8 +147,8 @@ def calculate_solar_production(solar_system_config: dict, weather_data: dict) ->
     production_kw = (total_panel_wattage_wp * (actual_irradiance_wpm2 /I_STC) * eff_system * eff_temp) /1000        
 
 
-    #KONAČNA PROIZVODNJA: Ogranicavamo proizvodnju na kapacitet invertera.
-     #            Sistem ne može proizvesti vise snage nego sto inverter moze da obradi
+    #KONAcNA PROIZVODNJA: Ogranicavamo proizvodnju na kapacitet invertera.
+     #            Sistem ne moze proizvesti vise snage nego sto inverter moze da obradi
     final_production_kw = min(production_kw, inverter_capacity_kw)
     
 
@@ -183,53 +196,58 @@ def calculate_household_consumption(user_config: dict,solar_system_config:dict, 
     return total_household_consumption_kw
 
 
-def calculate_grid_contributaion(solar_production_kw: float, household_consumption_kw: float, battery_flow_kw: float) -> float:
+def calculate_grid_contribution(solar_production_kw: float, household_consumption_kw: float, battery_flow_kw: float) -> float:
     """
-    Cilj funkcije: 
-            Izracunati trenutnu neto razmenu elektricne snage izmedju domacinstva i distributivne mreze u kilovatima (kW), ova funkcija odredjuje da li domacinstvo trenutno uzima snagu iz mreze (uvoz) ili salje snagu u mrezu (izvoz).
-   
+    Cilj funkcije:
+        Izracunati trenutnu neto razmenu elektricne snage između domaćinstva i distributivne mreze u kilovatima (kW).
+        Ova funkcija određuje da li domaćinstvo trenutno uzima snagu iz mreze (uvoz) ili šalje snagu u mrezu (izvoz).
+
     Teorija:
-        Energetski bilans u domcinstvu sa solarnim panelima i baterijom (ako je ima) zasniva se na principu ocuvanja energije Ukupna snaga koja se trosi u domaćinstvu mora biti pokrivena nekim izvorom. 
-        Ti izvori su:
-            1. Solarna proizvodnja: Snaga koju generisu solarni paneli.
-            2. Baterija: Snaga koju baterija isporucuje (praznjenje) ili apsorbuje (punjenje)
-            3. Distributivna mreza: Snaga koja se uzima iz mreže ili se u nju salje
+        Energetski bilans u domaćinstvu sa solarnim panelima i baterijom (ako je ima) zasniva se na principu ocuvanja energije.
+        Ukupna snaga koja se troši u domaćinstvu mora biti pokrivena nekim izvorom. Ti izvori su:
+            1. Solarna proizvodnja: Snaga koju generišu solarni paneli.
+            2. Baterija: Snaga koju baterija isporucuje (praznjenje) ili apsorbuje (punjenje).
+            3. Distributivna mreza: Snaga koja se uzima iz mreze ili se u nju šalje.
 
-    Formula: P_mreza_kW = P_potrosnja - P_solarna_kW + P_protork_baterije_kW
-    
-            P_mreza_kW            ->     Ovo je trenutna neto razmena snage sa mrezom u kilovatima (kW)
-    .                                   Pozitivna vrednost: Znaci da domacinstvo uzima (uvozi) snagu iz mreze. To se desava kada je ukupna potrosnja veća od solarne proizvodnje i snage koju baterija moze da isporuci.
-    .                                   Negativna vrednost: Znaci da domacinstvo salje (izvozi) snagu u mrezu. To se desava kada je solarna proizvodnja veća od ukupne potrošnje i snage koju baterija moze da apsorbuje
+    Formula:
+        P_mreza_kW = P_potrosnja_kW - P_solarna_kW + P_protok_baterije_kW
 
-            P_potrosnja           ->  Ova vrednost dolazi iz funkcije calculate_household_consumption i predstavlja zbir bazne potrosnje i potrosnje svih aktivnih IoT uredjaja. To je ukupna snaga koju kuca "zahteva" u datom trenutku
+        Objašnjenje elemenata formule:
+            P_mreza_kW: Trenutna neto razmena snage sa mrezom u kilovatima (kW).
+                - Pozitivna vrednost: Znaci da domaćinstvo uzima (uvozi) snagu iz mreze. To se dešava kada je ukupna potrošnja veća od solarne proizvodnje i snage koju baterija moze da isporuci.
+                - Negativna vrednost: Znaci da domaćinstvo šalje (izvozi) snagu u mrezu. To se dešava kada je solarna proizvodnja veća od ukupne potrošnje i snage koju baterija moze da apsorbuje.
 
-            P_solarna_kW          ->  Ovo je trenutna elektricna snaga koju proizvode solarni paneli u kilovatima (kW) dobijamo je iz calculate_solar_production
+            P_potrosnja_kW: Ukupna trenutna elektricna snaga potrošnje domaćinstva u kilovatima (kW).
+                            Ova vrednost dolazi iz funkcije `calculate_household_consumption` i predstavlja zbir bazne potrošnje i potrošnje svih aktivnih IoT uređaja.
+                            To je ukupna snaga koju kuća "zahteva" u datom trenutku.
 
-            P_protork_baterije_kW -> Ovo je trenutni protok snage ka ili iz baterije u kilovatima (kW), Ova vrednost dolazi iz funkcije update_battery_charge
-            .                     ->  Ako je P_protork_baterije_kW pozitivan, baterija puni onda baterija "trosi" deo proizvedene solarne snage (ili cak snage iz mreze ako je nema dovoljno iz solara), pa se ta snaga oduzima od raspolozive snage za domacinstvo
-            .                     ->  Ako je P_protork_baterije_kW negativan, baterija prazni onda baterija "isporucuje" snagu domacinstvu, pa se ta snaga dodaje raspolozivoj snazi za pokrivanje potrosnje
+            P_solarna_kW: Trenutna elektricna snaga koju proizvode solarni paneli u kilovatima (kW).
+                          Ova vrednost dolazi iz funkcije `calculate_solar_production`.
 
-            U formuli zna minusa ispred P_protork_baterije_kW automatski obrađuje oba scenarija:
-            Ako se baterija puni (pozitivan protok) P_potrosnja - P_solarna_KW  (pozitavn protok ) smanjuje neto snagu dostupnu mrezi (ili povecava potrebu iz mreze).
-
-            Ako se baterija prazni (negativan protok), P_potrošnja - P_solarna - (negativan protok) postaje P_potrošnja - P_solarna + (apsolutna vrednost protoka), sto znaci da baterija doprinosi pokrivanju potrosnje
-
+            P_protok_baterije_kW: Trenutni protok snage ka ili iz baterije u kilovatima (kW).
+                                  Ova vrednost dolazi iz funkcije `update_battery_charge`.
+                                  - Ako je `P_protok_baterije_kW` pozitivan (baterija se puni), to znaci da baterija apsorbuje snagu. Ta snaga se dodaje ukupnoj potrebi domaćinstva, što rezultira većom potrebom iz mreze ili manjim izvozom.
+                                  - Ako je `P_protok_baterije_kW` negativan (baterija se prazni), to znaci da baterija isporucuje snagu. Ta snaga smanjuje ukupnu potrebu domaćinstva iz mreze, što rezultira manjim uvozom ili većim izvozom.
     """
 
-    # Ova funkcija izracunava trenutnu neto razmenu elektricne snage sa distributivnom mrezom (u kW)
-    # Pozitivna vrednost znaci uvoz iz mreze, negativna vrednost znaci izvoz u mrezu
+    # Ova funkcija izracunava trenutnu neto razmenu elektricne snage sa distributivnom mrezom (u kW).
+    # grid_contribution_kw > 0  znaci da domacinstvo uvozi iz grid-a
+    # grid_contribution_kw < 0  znaci da domacinstvo exportuje u grid
 
-    # 1. Izracunavanje neto snage pre nego sto se uzme u obzir baterija
-    # Ovo je razlika izmedju onoga sto solarni paneli proizvode i onoga sto domacinstvo trosi
-    net_power_before_battery = solar_production_kw - household_consumption_kw
+    # ovde se se namerno oduzimao od consumption-a da bi nam ostao negativan znak ako je  solar_production_kw veci od household_consumption_kw
+    net_demand_or_surplus = household_consumption_kw - solar_production_kw
 
-    # 2. Izracunavanje konacnog doprinosa mrezi
-    # Od neto snage pre baterije oduzimamo protok snage baterije
-    # Ako se baterija puni (battery_flow_kw je pozitivno), to smanjuje snagu dostupnu mrezi
-    # Ako se baterija prazni (battery_flow_kw je negativno), to povecava snagu dostupnu mrezi
+    # battery_flow_kw ce se dobijati iz update_battery_charge i ta funkcija nam garantuje da se nece desiti npr imamo production=1kW  consumption = 3kW  i da bude pozitivan(da on se puni tj da trosi) battery_flow_kw = 3kW 
+    # jer bi to onda znacilo da cemo i za njega import-ovati iz GRID-a A TO SE NE RADI ! ! !
 
-    #ide + battery_flow_kw  jer on moze biti negativan i posto je + neutralan znak oduzece se normalno od net_power_before_battery, a ja sam prethodno bio stavio - pa bi onda obrnuta stvar se desavala
-    grid_contribution_kw = net_power_before_battery + battery_flow_kw
+    # battery_flow_kw > 0  on se puni i bice pozitivan samo kada je net_demand_or_surplus (solar_production_kw)  > od potrosnje 
+
+    # battery_flow_kw <0   on doprinosi da se uvoz iz grid-a smanji kada imamo potrosnja > proizvodnje,  i ako baterija moze da ispegla npr net_demand_or_surplus = 3 kW (sto znaci treba uvest iz grid-a) i battery_flow_kw= - 5k  znaci baterija se prazni i pomaze da se ispegla potrosnja
+    # grid_contribution_kw bi trebao da bude 0 tj da se nista ne uvozi iz grid-a 
+
+    
+
+    grid_contribution_kw = net_demand_or_surplus + battery_flow_kw
 
     return grid_contribution_kw
 
@@ -279,10 +297,15 @@ def update_battery_charge( battery_config: dict, net_power_kw: float, time_step_
     actual_battery_flow_kw = 0.0                                            # Stvarni protok snage ka/iz baterije (kW), >0 onda se baterija puni, <0 onda se baterija prazni
     charge_change_kwh = 0.0                                                 # Promena napunjenosti baterije u kWh
 
+    # Ako nije proizvodnja > potrosnje, onda se baterija nece puniti 
+    # vec ce se pokusati da izvucemo energiju iz baterija da to izbalansiramo ako baterija moze da pokrije potrosnju
+
+
+
     if net_power_kw>0:                                                      # postoji visak snage Proizvodnja > Potrosnje  -> pokusavamo da punimo bateriju
         energy_available_kwh = net_power_kw * time_step_hours               # Koliko energije je dostupno za punjenje
         max_charge_by_rate_kwh = max_charge_rate_kw * time_step_hours           # Maksimalna energija koju baterija moze primiti po brzini
-        remaining_capacity_kwh = capacity_kwh - current_charge_kwh          # Koliko kWh još može da stane u bateriju
+        remaining_capacity_kwh = capacity_kwh - current_charge_kwh          # Koliko kWh još moze da stane u bateriju
 
         # Stvarna energija koja ulazi u bateriju je minimum od
         # 1. Dostupne energije preko proizvodnje solarnih panela (nakon efikasnosti punjenja)
@@ -315,7 +338,7 @@ def update_battery_charge( battery_config: dict, net_power_kw: float, time_step_
         discharge_amount_kwh = min(
             energy_needed_kwh / efficiency,                             
             max_discharge_by_rate_kwh,
-            current_charge_kwh                                          # Ne može se isprazniti vise nego što je trenutno u bateriji
+            current_charge_kwh                                          # Ne moze se isprazniti vise nego što je trenutno u bateriji
         )
 
 
