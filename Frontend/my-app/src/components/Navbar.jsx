@@ -72,6 +72,8 @@ const Navbar = () => {
                 {isAuthenticated ? (
                     <>
                         {/* Ikonica User-a i username  ako je ulogovan*/}
+                          <Link to="/live-metering" className="px-3 py-1 bg-yellow-500 rounded-lg">Live Metering</Link>
+
                         <Link to="/profile" className="flex items-center space-x-2">          
                             <User className="text-white" />
                             <span>{user?.username || "MyProfile"}</span>       

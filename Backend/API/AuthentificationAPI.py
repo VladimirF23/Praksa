@@ -34,7 +34,22 @@ def login():
         # --- Caching User Data ---
         # Cachujemo  (user:{user_id}) i dodatne podatke sa json.dumps
         # ako postoji, setex will owerwrituje  ga, effectively updating it.
-        redis_client.setex(f"user:{user['user_id']}", 3600, json.dumps(user)) # Example TTL: 1 hour (3600 seconds)
+
+        user_cache_data = {
+            "user_id": user["user_id"],
+            "username": user["username"],
+            "email": user["email"],
+            "user_type": user["user_type"],
+            "house_size_sqm": user["house_size_sqm"],
+            "num_household_members": user["num_household_members"],
+            "latitude": user["latitude"],
+            "longitude": user["longitude"],
+            "registration_date": user["registration_date"],              #bice u fomratu tipa 1753104047.0 sto je validno posto ovo moze da se json dumpuje u redis, govori kolko vremena je proslo od 1970 ....
+            "last_cached_at": datetime.now().timestamp()                        
+        }
+
+
+        redis_client.setex(f"user:{user['user_id']}", 3600, json.dumps(user_cache_data)) # Example TTL: 1 hour (3600 seconds)
 
         # Cache the mapping for solar system ID (user_solar_system_id:{user_id})
         # You'll need to fetch the solar_system_id if not already in the 'user' dict.
@@ -43,7 +58,23 @@ def login():
         if solar_system_data:
             redis_client.set(f"user_solar_system_id:{user['user_id']}", str(solar_system_data['system_id']))
             # cachiramo solarni sistem ceo
-            redis_client.setex(f"solar_system:{solar_system_data['system_id']}", 3600, json.dumps(solar_system_data))
+
+            solar_system_cache_data = {
+                "system_id": solar_system_data["system_id"],
+                "user_id": solar_system_data["user_id"],
+                "battery_id": solar_system_data["battery_id"], # Can be None
+                "system_name": solar_system_data["system_name"],
+                "system_type": solar_system_data["system_type"],
+                "total_panel_wattage_wp": solar_system_data["total_panel_wattage_wp"],
+                "inverter_capacity_kw": solar_system_data["inverter_capacity_kw"],
+                "base_consumption_kw": solar_system_data["base_consumption_kw"],
+                "tilt_degrees": solar_system_data["tilt_degrees"],
+                "azimuth_degrees": solar_system_data["azimuth_degrees"],
+                "last_cached_at": datetime.now().timestamp()
+            }
+
+
+            redis_client.setex(f"solar_system:{solar_system_data['system_id']}", 3600, json.dumps(solar_system_cache_data))
 
             # Cache battery_id mapiranje ako solarni system ima bateriju
             if solar_system_data.get('battery_id'):
@@ -52,14 +83,35 @@ def login():
                 
                 battery_data = GetBatteryDataService(solar_system_data['battery_id'])
                 if battery_data:
-                    redis_client.setex(f"battery:{solar_system_data['battery_id']}", 1800, json.dumps(battery_data))
+
+                    battery_cache_data = {
+                        "battery_id": solar_system_data["battery_id"],
+                        "system_id": battery_data["system_id"], 
+                        "model_name": battery_data["model_name"],
+                        "capacity_kwh": battery_data["capacity_kwh"],
+                        "max_charge_rate_kw": battery_data["max_charge_rate_kw"],
+                        "max_discharge_rate_kw": battery_data["max_discharge_rate_kw"],
+                        "efficiency": battery_data["efficiency"],
+                        "manufacturer": battery_data["manufacturer"],
+                        "current_charge_percentage": battery_data["current_charge_percentage"],
+                        "last_cached_at": datetime.now().timestamp()
+                    }
+
+                    redis_client.setex(f"battery:{solar_system_data['battery_id']}", 1800, json.dumps(battery_cache_data))
         else:
             print(f"WARNING: No solar system found for user {user['user_id']} during login.")
 
          # Cache IoT devices (ako postoje)
         iot_devices_data = GetUsersIOTsService(user['user_id'])
         if iot_devices_data:
-             redis_client.setex(f"user_iot_devices:{user['user_id']}", 600, json.dumps(iot_devices_data))
+             
+            iot_devices_list_cache = {
+                "user_id": user["user_id"],
+                "solar_system_id": solar_system_data['system_id'],
+                "devices": iot_devices_data,                      # lista dictionary-a
+                "last_cached_at": datetime.now().timestamp()
+                }
+            redis_client.setex(f"user_iot_devices:{user['user_id']}", 600, json.dumps(iot_devices_list_cache))
 
 
         access_token = create_access_token(
@@ -240,7 +292,21 @@ def get_current_user_details():
         if not user_data:
             user_data = GetUserByIdService(user_id)
             if user_data:
-                redis_client.setex(f"user:{user_id}", 3600, json.dumps(user_data))              #cachiramo podatke 
+                user_cache_data = {
+                    "user_id": user_id,
+                    "username": user_data["username"],
+                    "email": user_data["email"],
+                    "user_type": user_data["user_type"],
+                    "house_size_sqm": user_data["house_size_sqm"],
+                    "num_household_members": user_data["num_household_members"],
+                    "latitude": user_data["latitude"],
+                    "longitude": user_data["longitude"],
+                    "registration_date": user_data["registration_date"],              #bice u fomratu tipa 1753104047.0 sto je validno posto ovo moze da se json dumpuje u redis, govori kolko vremena je proslo od 1970 ....
+                    "last_cached_at": datetime.now().timestamp()                        
+                }
+
+
+                redis_client.setex(f"user:{user_id}", 3600, json.dumps(user_cache_data))              #cachiramo podatke 
             else:
                 return jsonify({"error": "User data not found"}), 404
         
@@ -250,7 +316,23 @@ def get_current_user_details():
             if solar_system_data_from_db:
                 solar_system_data = solar_system_data_from_db
                 system_id = solar_system_data['system_id']
-                redis_client.setex(f"solar_system:{system_id}", 3600, json.dumps(solar_system_data))
+
+                solar_system_cache_data = {
+                    "system_id": system_id,
+                    "user_id": user_id,
+                    "battery_id": battery_id, # Can be None
+                    "system_name": solar_system_data["system_name"],
+                    "system_type": solar_system_data["system_type"],
+                    "total_panel_wattage_wp": solar_system_data["total_panel_wattage_wp"],
+                    "inverter_capacity_kw": solar_system_data["inverter_capacity_kw"],
+                    "base_consumption_kw": solar_system_data["base_consumption_kw"],
+                    "tilt_degrees": solar_system_data["tilt_degrees"],
+                    "azimuth_degrees": solar_system_data["azimuth_degrees"],
+                    "last_cached_at": datetime.now().timestamp()
+                }
+
+
+                redis_client.setex(f"solar_system:{system_id}", 3600, json.dumps(solar_system_cache_data))
                 redis_client.set(f"user_solar_system_id:{user_id}", str(system_id))
             else:
                 # CRITICAL ERROR: User postoji a system na postoji.
@@ -266,7 +348,23 @@ def get_current_user_details():
             battery_data_from_db = GetBatteryDataService(battery_id_from_solar_system)      #saljemo id baterije iz solarnog sistema
             if battery_data_from_db:
                 battery_data = battery_data_from_db
-                redis_client.setex(f"battery:{battery_id_from_solar_system}", 1800, json.dumps(battery_data))
+
+                battery_cache_data = {
+                    "battery_id": battery_id,
+                    "system_id": battery_data["system_id"], 
+                    "model_name": battery_data["model_name"],
+                    "capacity_kwh": battery_data["capacity_kwh"],
+                    "max_charge_rate_kw": battery_data["max_charge_rate_kw"],
+                    "max_discharge_rate_kw": battery_data["max_discharge_rate_kw"],
+                    "efficiency": battery_data["efficiency"],
+                    "manufacturer": battery_data["manufacturer"],
+                    "current_charge_percentage": battery_data["current_charge_percentage"],
+                    "last_cached_at": datetime.now().timestamp()
+                }
+
+
+
+                redis_client.setex(f"battery:{battery_id_from_solar_system}", 1800, json.dumps(battery_cache_data))
                 redis_client.set(f"solar_system_battery_id:{solar_system_data['system_id']}", str(battery_id_from_solar_system)) # Update mapping too
 
         # IoT Devices Data (optional)
@@ -274,7 +372,15 @@ def get_current_user_details():
             iot_devices_data_from_db = GetUsersIOTsService(user_id)
             if iot_devices_data_from_db:
                 iot_devices_data = iot_devices_data_from_db
-                redis_client.setex(f"user_iot_devices:{user_id}", 600, json.dumps(iot_devices_data))
+
+                iot_devices_list_cache = {
+                "user_id": user_id,
+                "solar_system_id": system_id,
+                "devices": iot_devices_data,                      # lista dictionary-a
+                "last_cached_at": datetime.now().timestamp()
+                }
+
+                redis_client.setex(f"user_iot_devices:{user_id}", 600, json.dumps(iot_devices_list_cache))
 
 
         # --- Phase IV: Pravimo Odgovor ---

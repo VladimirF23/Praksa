@@ -277,7 +277,7 @@ def register_user():
             "system_type": solar_system_db["system_type"],
             "total_panel_wattage_wp": solar_system_db["total_panel_wattage_wp"],
             "inverter_capacity_kw": solar_system_db["inverter_capacity_kw"],
-            "base_consumption_kwh": solar_system_db["base_consumption_kwh"],
+            "base_consumption_kw": solar_system_db["base_consumption_kw"],
             "tilt_degrees": solar_system_db["tilt_degrees"],
             "azimuth_degrees": solar_system_db["azimuth_degrees"],
 

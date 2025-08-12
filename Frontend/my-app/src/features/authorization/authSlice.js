@@ -28,15 +28,22 @@ const authSlice = createSlice({
     initialState,
     reducers: {
         loginSuccess:(state,action) =>{
+            const { user, battery, solar_system, iot_devices } = action.payload;
+
             state.isAuthenticated = true;
-            state.user = action.payload;        // Flask nece vracati podatke o user-u preko login-a trebace mi odvojen API request get da dobijem info o user-u  
-            state.error= null;
-            state.loading = false;
+            state.user = user;                  // only the core user
+            state.battery = battery || null;    // store battery info
+            state.solarSystem = solar_system || null;
+            state.iotDevices = iot_devices?.devices || [];
+            state.error = null;
         },
         logout:(state) =>{
             state.isAuthenticated = false;
             state.user = null;
-            state.error=null;
+            state.battery = null;
+            state.solarSystem = null;
+            state.iotDevices = [];
+            state.error = null;
             state.loading = false;
         },
         //kako radi Redux Toolkit kada se pozove loginFailure(errorMessage) i prosledi erroMessage, toolkit napravi action objekat koji ovako izgleda
@@ -45,10 +52,15 @@ const authSlice = createSlice({
         loginFailure: (state,action) =>{
             state.isAuthenticated=false;
             state.user= null;
+            state.battery = null;
+            state.solarSystem = null;
+            state.iotDevices = [];
             state.error = action.payload;
             state.loading = false;
 
         },
+        // MISLIM DA setUserDetails nigde ne koristim i da ne treba
+
         //reducer za podesavanja user info-a nakon uspesnog login-a / refresh-a
         //Ovako mora zato sto su JWTs su HttpOnly, Treba da dobijemo user data iz odvojenog point-a
         setUserDetails: (state, action) => {

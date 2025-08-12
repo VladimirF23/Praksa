@@ -155,7 +155,7 @@ def calculate_solar_production(solar_system_config: dict, weather_data: dict) ->
 
     return max(0.0, final_production_kw)            #Osiguravamo da bude pozitivno ili 0  (ne moze biti negativna proizvodnja)
 
-def calculate_household_consumption(user_config: dict,solar_system_config:dict, iot_devices_data: list[dict]) -> float:
+def calculate_household_consumption(solar_system_config:dict, iot_devices_data: list[dict]) -> float:
     """
         Cilj funkcije:
             Izracunati trenutnu UKUPNU elektricnu snagu potrosnje domacinstva u KW

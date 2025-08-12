@@ -4,6 +4,16 @@ Flask-JWT-Extended
 Flask
 mysql-connector-python
 python-dotenv
-websockets
+
 debugpy
 Flask-CORS
+openmeteo-requests
+requests-cache 
+retry-requests 
+numpy 
+pandas
+
+Flask-SocketIO
+APScheduler
+gevent
+gevent-websocket

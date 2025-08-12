@@ -89,14 +89,14 @@ def AddSolarSystemToBattery(battery_id, system_id) -> bool:
     """
     Nakon kreiranja solarnog system-a u zavisnosti od toga da li je hibridni dodajemo bateirji id solarnog sistema kom ona pripada
     Zbog UNIQUE constraint-a na 'solar_system_id' u tabeli 'batteries',
-    jedan solarni sistem moze biti povezan sa najviše jednom baterijom.
+    jedan solarni sistem moze biti povezan sa najvise jednom baterijom.
 
     Args:
         battery_id (int): ID baterije koju treba azurirati.
         solar_system_id (int): ID solarnog sistema koji treba povezati sa baterijom.
 
     Returns:
-        bool: True ako je azuriranje uspešno, False ako ne
+        bool: True ako je azuriranje uspesno, False ako ne
 
     Raises:
         IlegalValuesException: Ako dode do problema sa integritetom baze podataka (npr.
@@ -124,7 +124,7 @@ def AddSolarSystemToBattery(battery_id, system_id) -> bool:
                 connection.rollback()           #ponistavamo promene pre raise-ovanja exception-a
 
         connection.commit()
-        print(f"Baterija ID {battery_id} uspešno povezana sa solarnim sistemom ID {system_id}.")
+        print(f"Baterija ID {battery_id} uspesno povezana sa solarnim sistemom ID {system_id}.")
         return True
 
     except mysql.connector.IntegrityError as err:
@@ -210,3 +210,52 @@ def GetBatteryIdBySystemIDService(system_id:int)->dict:
     finally:
         cursor.close()
         release_connection(connection) 
+
+
+
+def update_battery_percentage(battery_id: int, new_percentage: float) -> bool:
+    """
+    Asurira procenat napunjenosti baterije u bazi podataka.
+
+    Args:
+        battery_id (int): ID baterije koju treba asurirati.
+        new_percentage (float): Novi procenat napunjenosti baterije (npr. 50.75).
+
+    Returns:
+        bool: True ako je azuriranje uspesno, False inace.
+
+    Raises:
+        ConnectionException: Ako dođe do greske prilikom rada sa bazom.
+    """
+    # SQL upit za azuriranje procenta napunjenosti za specificni battery_id.
+    # Koristimo `%s` kao placeholder za bezbednost.
+    update_query = """
+    UPDATE batteries
+    SET current_charge_percentage = %s
+    WHERE battery_id = %s
+    """
+
+    connection = getConnection()
+    cursor = connection.cursor()
+
+    try:
+        # Izvrsavamo UPDATE upit sa novim vrednostima.
+        # Vasno je da se `new_percentage` i `battery_id` proslede kao tuple.
+        cursor.execute(update_query, (new_percentage, battery_id))
+        
+        # Sacuvamo promene u bazi podataka
+        connection.commit()
+        
+        # Proveravamo da li je neki red bio asuriran.
+        if cursor.rowcount > 0:
+            return True
+        else:
+            return False
+
+    except mysql.connector.Error as err:
+        connection.rollback()
+        raise ConnectionException(f"Greska baze podataka prilikom azuriranja stanja baterije: {str(err)}")
+    
+    finally:
+        cursor.close()
+        release_connection(connection)

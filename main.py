@@ -1,5 +1,7 @@
-from extensions import app  # Umesto kreiranja novih objekata, uvozi ih
+from extensions import app,socketio  # Umesto kreiranja novih objekata, uvozi ih
 from Backend.API import *
+
+
 
 import threading
 
@@ -21,7 +23,15 @@ app.wsgi_app = ProxyFix(app.wsgi_app,x_for=1, x_proto=1,x_host=1)
 #ne zaboravi blueprinte da dodas
 app.register_blueprint(registration_blueprint)
 app.register_blueprint(auth_blueprint)
+# app.register_blueprint(live_metering_bp)
 
 if __name__ =='__main__':
-    app.run(host='0.0.0.0', port=5000,debug=True, threaded=True)#debug ->autoReload ako je promena u python code-u server se automatski restartuje, i debug console koju flask pokaze ako dodje do errora
+    # Start SocketIO instead of Flask's built-in run
 
+
+    socketio.run(
+        app,
+        host='0.0.0.0',
+        port=5000,
+        debug=True
+    )

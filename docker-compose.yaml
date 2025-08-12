@@ -17,7 +17,7 @@ services:
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_DB=${MYSQL_DB_NAME}
-
+      - GEVENT_SUPPORT=True                                     # da bi radilo debugovanje
     depends_on:                                                 #osigurava redosled pokretanja flask saceka redis i mysql pokrenu pre njega, ali ne i readines, Flask app treba sam da ceka MySQL i Redis da budu availible
       - redis-praksa
       - mysql_db-praksa
@@ -86,6 +86,9 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro                     # mount-ujemo  config za development
       - ./nginx/certs:/etc/nginx/certs:ro                               #ovako je najbolje zbog sigurnosti, napisao sam u nginx docker file zato da ne koristim COPY tih cert, ro ->read only
+
+
+
 
 
 networks:

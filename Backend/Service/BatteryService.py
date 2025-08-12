@@ -59,6 +59,9 @@ def GetBatteryDataService(battery_id:int)->dict:
     return  GetBatteryData(battery_id)
 
 
+def UpdateBatteryCurrentPercentageService(battery_id:int,new_percentage: float)->bool:
+
+    return update_battery_percentage(battery_id,new_percentage)
 
 
 def GetBatteryIdBySystemIDService(system_id:int) -> dict:

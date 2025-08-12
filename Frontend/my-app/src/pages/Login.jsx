@@ -47,6 +47,9 @@ const Login = () =>{
             await loginUser(credentials)
             const userDetailsResponse = await axiosInstance.get('/api/auth/me');                    // novi API call treba samo da dodam   
             const userDetails = userDetailsResponse.data;
+
+            console.log("DEBUG POSLE USPESNOG LOGIN-a: userDetails before dispatch", userDetails);
+
             dispatch(loginSuccess(userDetails));                                                    // Dispatch-ujemo ka Redux-u sa podacima od user-a
             navigate('/');                                                                          // Na home page ga redirectujemo
 

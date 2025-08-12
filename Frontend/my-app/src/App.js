@@ -5,6 +5,8 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import store from './app/store';
 
 import Navbar from "./components/Navbar";
+import LiveMetering  from './components/LiveMetering';
+
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -93,6 +95,7 @@ useEffect(() => {
 
       console.log("DEBUG: User details response received:", userDetailsResponse.data);
       const userDetails = userDetailsResponse.data;
+      
       dispatch(loginSuccess(userDetails));                                                         // User je autenfitikovan, postavljamo details
       console.log("DEBUG AppContent: User authenticated successfully.");
 
@@ -133,7 +136,8 @@ useEffect(() => {
       {/* --- Protected Routes --- */}
       {/* Bilo koji route nestovan ovde ce zahtevati autentifikaciju */}
       <Route element={<ProtectedRoute />}>
-      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/live-metering" element={<LiveMetering />} />
+
       {/* Add more protected routes here */}
        {/* Primer: <Route path="/live-board" element={<CheckLiveBoard />} /> 
                    <Route path ="/myProfile" ..../>
