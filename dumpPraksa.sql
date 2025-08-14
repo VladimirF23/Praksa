@@ -31,7 +31,7 @@ CREATE TABLE batteries (
     max_discharge_rate_kw DECIMAL(10, 2),                               -- Max snaga praznjenja u kW
     efficiency DECIMAL(4, 2),                                           -- Punjenje/praznjenje efikanost (e.g., 0.95 for 95%)
     manufacturer VARCHAR(255),
-    current_charge_percentage DECIMAL(5,2) DEFAULT 0.00                -- Trenutna napunjenost baterije u %
+    current_charge_percentage DECIMAL(5,2) DEFAULT 0.00                -- Trenutna napunjenost baterije u %,  34.22, 100.00 prolazi, ali 100.232 nece !
  
 );
 

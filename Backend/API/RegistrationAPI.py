@@ -24,7 +24,8 @@ def calculate_base_consumption(house_size_m2, household_members):
     # 0.3 se tumači kao 0.3 kW po clanu domaćinstva.
 
     #Za 100 m² kucu i 4 osobe: (100×0.01)+(4×0.3)=1.0+1.2=2.2 kW. Realno bez jakih potrosaca
-    return (house_size_m2 * 0.01) + (household_members * 0.3)
+    
+    return (house_size_m2 * 0.003) + (household_members * 0.08)
 
 #metoda je post jer POST drzi sensitive data (email/password) u request body a on nije logovan u browser history
 registration_blueprint = Blueprint('registration',__name__,url_prefix='/registration')

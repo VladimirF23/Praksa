@@ -125,8 +125,8 @@ def calculate_solar_production(solar_system_config: dict, weather_data: dict) ->
 
     # Faktor sistemski gubitaka system_efficiency_factor
     # gubitci u sistemu smanjuju efikasnost (gubitci kod invertera,provodnika, prljavstina)
-    # emprijiska vrednost  80% uobicajena aprox.
-    eff_system = 0.80        
+    # emprijiska vrednost  90% uobicajena aprox.
+    eff_system = 0.90        
 
     # referetna temp i Temperaturni koeficient 
     # Za svaki stepen iznad referetne temp efikasnost panela opada za 0.4 % (0.004)

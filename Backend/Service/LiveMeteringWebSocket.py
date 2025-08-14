@@ -22,6 +22,33 @@ live_metering_bp = Blueprint('live_metering', __name__)
 scheduler = BackgroundScheduler()
 scheduler.start()
 
+
+def build_battery_cache_data(battery_id, battery_data):
+    """
+    Builds a battery cache data dictionary from the given battery data.
+    
+    Args:
+        battery_id (int): Battery ID for the Redis key.
+        battery_data (dict): Battery information from DB or calculations.
+
+    Returns:
+        dict: Battery cache payload.
+    """
+    return {
+        "battery_id": battery_id,
+        "system_id": battery_data.get("system_id"),
+        "model_name": battery_data.get("model_name"),
+        "capacity_kwh": battery_data.get("capacity_kwh"),
+        "max_charge_rate_kw": battery_data.get("max_charge_rate_kw"),
+        "max_discharge_rate_kw": battery_data.get("max_discharge_rate_kw"),
+        "efficiency": battery_data.get("efficiency"),
+        "manufacturer": battery_data.get("manufacturer"),
+        "current_charge_percentage": battery_data.get("current_charge_percentage"),
+        "last_cached_at": datetime.now().timestamp()
+    }
+
+
+
 # --- HELPER FUNCTION: Get Open-Meteo API Data ---
 def get_live_irradiance(latitude, longitude, tilt, azimuth, user_id):
     """
@@ -29,7 +56,7 @@ def get_live_irradiance(latitude, longitude, tilt, azimuth, user_id):
     Caches per user by adding user_id to the request parameters.
     Uses `global_tilted_irradiance_instant` for more precise measurements.
     """
-    cache_session = requests_cache.CachedSession('.cache', expire_after = 60*15)
+    cache_session = requests_cache.CachedSession('.cache', expire_after = 60*15)        #15 min
     retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
     openmeteo = openmeteo_requests.Client(session = retry_session)
 
@@ -91,6 +118,19 @@ def calculate_and_emit_live_data(user_id):
     try:
             cache_key = f"live_metering_data:{user_id}"
             
+            live_data_payload_cache= None
+
+            #da sprecimo da se funkcija izvrsava vise puta u 15 min (da ne bi svake sekunde sa povecavao % baterije / smanjivao )
+            live_data_payload_cache = redis_client.get(f"live_metering_data:{user_id}")
+
+            if live_data_payload_cache:
+                live_data_payload_cache = json.loads(live_data_payload_cache);    
+
+                socketio.emit('live_metering_data', live_data_payload_cache, room=f"user_{user_id}")
+                print(f"Emitted CACHE data for user {user_id}")
+                return
+                 
+
             # --- Fetching data from Redis with fallback to DB ---
             system_id = None
             battery_id = None
@@ -175,17 +215,27 @@ def calculate_and_emit_live_data(user_id):
                 print(f"Error: Failed to fetch live weather data for user {user_id}")
                 return
             
-            current_gti = live_data.get("global_tilted_irradiance_instant")
-            current_temperature = live_data.get("temperature_2m")
+            current_gti = round(live_data.get("global_tilted_irradiance_instant", 0), 2)  # na 2 decimale zbog preciznosti
+            current_temperature = round(live_data.get("temperature_2m", 0), 2)            
             current_is_day = live_data.get("is_day")
             
             # pozivanje funkcije koja racunaju
             solar_production_kw = calculate_solar_production(solar_system_data, {"global_tilted_irradiance_instant": current_gti, "temperature_2m": current_temperature, "is_day": current_is_day})
+            
+            solar_production_kw = round(solar_production_kw,2)
+
             household_consumption_kw = calculate_household_consumption(solar_system_data, iot_devices_data)
+
+            household_consumption_kw = round(household_consumption_kw,2)
+            
             net_power_kw = solar_production_kw - household_consumption_kw
 
             #DODAJ IF ako ne postoji baterija da se ovo ne racuna
-            new_charge_percentage, battery_flow_kw = update_battery_charge(battery_data, net_power_kw, time_step_hours=15/60.0)
+            new_charge_percentage, battery_flow_kw = update_battery_charge(battery_data, net_power_kw, time_step_hours=1)
+
+            battery_flow_kw = round(battery_flow_kw,2)
+            new_charge_percentage = round(new_charge_percentage,2)                      #100.00, 95.23 je ok, a d abi moglo norm da se upise
+
             grid_contribution_kw = calculate_grid_contribution(solar_production_kw, household_consumption_kw, battery_flow_kw)
             
             live_data_payload = {
@@ -201,17 +251,28 @@ def calculate_and_emit_live_data(user_id):
                 "is_day": bool(current_is_day)
             }
             
-            #DODAJ IF DA AKO NE POSTOJI BATERIJA DA SE OVO NE RACUNA
+            #DODAJ IF DA AKO NE POSTOJI BATERIJA DA SE OVO NE RACUNA , MSM da nema potrebe za if-om
             flag = UpdateBatteryCurrentPercentageService(battery_id, new_charge_percentage)
-            if flag is False:
-                print(f"Error: Failed to update battery percentage for user {user_id}")
-                return
+
+            # Ovo bukvalno ne treba jer ako je na 100% i na 0% vise puta onda ce bez razloga fail-ovati jer tamo nam vraca kao na changed row true ili false 
+            # if flag is False:
+            #     print(f"Error: Failed to update battery percentage for user {user_id}")
+            #     return
+
+            # Treba i reddis updejtovati kao sto smo i bazu updejtovali, Posto mi je ovde bio problem jer nisam u reddi-su updejtovao battery_percentage i onda je on  istao isti kao pre prvog izvrsavanja
+            # i kada je otislo do baze onaj current_row se nije promenio posto je u bazi bilo upsiano 45 a u redisu je ostalo 75 kao originalno i onda je current row bio kao da se nista nije promenilo i ovde mi je bacalo false
+
+            battery_data["current_charge_percentage"] = new_charge_percentage
+            
+            battery_cache_data = build_battery_cache_data(battery_data["battery_id"], battery_data)     #dodao sam i onaj timestamp kao u svakom cache-ovanju
+
+            redis_client.setex(f"battery:{battery_id}", 1800, json.dumps(battery_cache_data))
 
 
 
             #Trebala bi ovde mozda automatizacija za IOT uredjaje
 
-            redis_client.setex(cache_key, 900, json.dumps(live_data_payload))
+            redis_client.setex(cache_key, 900, json.dumps(live_data_payload))                           #15 minuta da traje cache, 900, testirano i na 30 sekundi radi sve norm
             
             # Emit data to the connected user via WebSocket
             socketio.emit('live_metering_data', live_data_payload, room=f"user_{user_id}")
@@ -286,7 +347,7 @@ def handle_disconnect():
 
 # # Add the scheduled job to run every 15 minutes
 
-# OVDE JE PROBLEM JER CE 2 PUT SCHEDULE-OVATI OVAJ POSAO OVO SE TREBA NEGDE IZMESTITI
+# OVDE JE PROBLEM JER CE 2 PUT SCHEDULE-OVATI OVAJ POSAO OVO SE TREBA NEGDE IZMESTITI, a i da se 2 puta scheduluje svakako ce biti u cache-u pa nece nista naknadno racunati
 # scheduler.add_job(scheduled_task_for_all_users, 'interval', minutes=15)
 
 # --- OLD ENDPOINT REMOVED. New logic is handled by WebSockets and background tasks. ---
