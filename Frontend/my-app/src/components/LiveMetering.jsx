@@ -2,12 +2,37 @@ import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import kuca from "./kuca.png";
 import "./pulse.css"; // pulse animation
+import { useSelector,useDispatch } from "react-redux";
+import { updateIotDeviceState  } from "../api/iotApi";
+import { toggleIotDevice } from "../features/authorization/authSlice"; 
+
 
 export default function LiveMetering() {
   const [status, setStatus] = useState("connecting");
   const [liveData, setLiveData] = useState(null);
   const [logMessages, setLogMessages] = useState([]);
-  const [debugVisible, setDebugVisible] = useState(false); // 👈 toggle state
+  const [debugVisible, setDebugVisible] = useState(false); //  toggle state
+  const dispatch = useDispatch();
+
+  const [notification, setNotification] = useState({ visible: false, message: "" });
+
+
+
+  const iotDevices = useSelector((state) => state.auth.iotDevices || []);
+
+
+const toggleDevice = async (device) => {
+  try {
+    const newStatus = device.current_status === "on" ? "off" : "on"; // flip state
+    
+    await updateIotDeviceState(device.device_id, newStatus); // send "on"/"off"
+
+    // update Redux state
+    dispatch(toggleIotDevice({ deviceId: device.device_id, status: newStatus }));
+  } catch (err) {
+    console.error("Failed to toggle device", err);
+  }
+};
 
 
   const addLog = (message) => {
@@ -45,6 +70,34 @@ export default function LiveMetering() {
     socket.on("live_metering_data", (payload) => {
       addLog("📡 Live data received: " + JSON.stringify(payload));
       setLiveData(payload);
+
+
+      //alarm za IoT da se pogase svi kojini nisi critical priority i upaljeni su
+
+      // Proveri da li postoji signal za isključivanje svih uređaja, bice None ako nema potrebe za gasenje ili ako korisnik nema IoT uredjaje ili bateriju
+      if (payload.alarm_user) {
+        addLog("Server je zatrazio iskljucivanje svih IoT uredjaja.");
+        
+        setNotification({
+        visible: true,
+        message: "All non-critical IoT devices will be turned off to conserve energy. 🔋"
+        });
+
+        // Automatically hide the notification after a few seconds
+        setTimeout(() => {
+        setNotification({ visible: false, message: "" });
+        }, 5000); // 5000 milliseconds = 5 seconds
+
+        iotDevices.forEach(device => {
+          if (device.current_status === "on" && device.priority_level !== "critical") {
+            dispatch(toggleIotDevice({ deviceId: device.device_id, status: "off" }));         //u Redux-u da updejtujemo posto sam na backendu vec updejtovao
+            addLog(`Device ${device.device_name} turned off due to not being critical priority.`);
+          }
+        });
+      }
+
+
+
     });
 
     return () => {
@@ -63,9 +116,15 @@ export default function LiveMetering() {
         backgroundPosition: "center",
       }}
     >
+
+      {notification.visible && (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-xl z-[100] transition-all duration-300 animate-slide-down">
+        {notification.message}
+    </div>
+)}
       {/* Sun/Moon icon */}
     {liveData && (
-    <div className="flex items-center gap-2 bg-white/80 px-3 py-1 rounded-full shadow absolute top-4 right-10">
+    <div className="flex items-center gap-2 bg-white/80 px-3 py-1 rounded-full shadow absolute top-4 right-7">
       {liveData.is_day ? "☀️" : "🌙"} 
       <span>{liveData.current_temperature_c}°C</span>
     </div>
@@ -170,6 +229,17 @@ export default function LiveMetering() {
             🔄 {liveData.battery_flow_kw} kW
           </div>
 
+          {/* Battery Loss */}
+          <div
+            className={`absolute top-[66%] left-[78%] px-3 py-2 rounded-lg text-sm font-bold shadow-lg border
+              ${liveData.battery_loss_kw > 0
+                ? "bg-red-400/90 text-black border-red-600"
+                : "bg-gray-300 text-black border-gray-500"
+              }`}
+          >
+            ⚠️ Battery Loss: {liveData.battery_loss_kw} kW
+          </div>
+
           {/* Grid Contribution bubble */}
           <div
             className={`absolute flex flex-col items-center justify-center border-[4px] border-orange-500 bg-white text-xs font-bold text-gray-900 shadow-lg ${
@@ -193,7 +263,7 @@ export default function LiveMetering() {
 
 
           {/* Timestamp */}
-          <div className="absolute bottom-4 right-4 bg-gray-800/80 text-white text-xs px-3 py-1 rounded">
+          <div className="absolute bottom-3 right-4 bg-gray-800/80 text-white text-xs px-3 py-1 rounded">
             Last update: {new Date(liveData.timestamp).toLocaleString()}
           </div>
 
@@ -214,10 +284,75 @@ export default function LiveMetering() {
               <li>
                 <span className="font-bold text-purple-500">🔄 Battery Flow</span> → Positive means charging, negative means discharging
               </li>
+              <li>
+                <span className="font-bold text-red-500">⚠️ Battery Loss</span> → Energy lost due to battery inefficiency (heat, conversion losses)
+              </li>
             </ul>
+          </div>
+
+
+
+
+          {/* IoT Devices iz redux-a vadi IoT od korisnika*/}
+          <div className="absolute bottom-[-250px] left-0 w-full bg-white/90 border-t border-gray-300 shadow-lg p-4">
+            <h3 className="font-bold text-gray-800 mb-3">IoT Devices</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {iotDevices.map((device, index) => (
+                <div
+                  key={index}
+                  className="p-4 border rounded-lg shadow-sm bg-white flex flex-col justify-between"
+                >
+                  <div>
+                    <h4 className="text-lg font-semibold">{device.device_name}</h4>
+                    <p className="text-sm text-gray-500">{device.device_type}</p>
+                    <p className="text-sm">
+                      Power: {device.base_consumption_watts} W
+                    </p>
+                    <p
+                      className={`mt-1 font-bold ${
+                        device.current_status === "on"
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {device.current_status.toUpperCase()}
+                    </p>
+                      {/* Priority Level */}
+                      <p
+                        className={`text-sm mt-1 font-medium ${
+                          device.priority_level === "critical"
+                            ? "text-red-700"
+                            : device.priority_level === "medium"
+                            ? "text-yellow-600"
+                            : device.priority_level === "low"
+                            ? "text-green-600"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        Priority: {device.priority_level.replace("_", " ").toUpperCase()}
+                      </p>
+                  </div>
+                  {device.is_smart_device && (
+                    <button
+                      onClick={() => toggleDevice(device)}
+                      className={`mt-3 py-1 px-3 rounded ${
+                        device.current_status === "on"
+                          ? "bg-red-500 hover:bg-red-600 text-white"
+                          : "bg-green-500 hover:bg-green-600 text-white"
+                      }`}
+                    >
+                      {device.current_status === "on" ? "Turn Off" : "Turn On"}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </>
       )}
+
+      
+
     </div>
   );
 }

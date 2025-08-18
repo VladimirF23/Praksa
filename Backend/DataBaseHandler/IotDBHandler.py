@@ -83,3 +83,53 @@ def GetIoTDevicesByUserId(user_id: int) -> list[dict]:
     finally:
         cursor.close()
         release_connection(connection)
+
+
+
+
+def UpdateIoTState(device_id: int, new_state: str, user_id: int) -> bool:
+    """
+    Updates the current_status of an IoT device for a specific user.
+    
+    Args:
+        device_id (int): The ID of the IoT device.
+        new_state (str): New state ("on" or "off").
+        user_id (int): The ID of the user who owns the device.
+
+    Returns:
+        bool: True if update was successful, otherwise raises Exception.
+    """
+
+    if new_state not in ("on", "off"):
+        raise IlegalValuesException("Invalid state. Allowed values: 'on' or 'off'.")
+
+    query = """
+        UPDATE iot_devices
+        SET current_status = %s
+        WHERE device_id = %s AND user_id = %s
+    """
+
+    connection = getConnection()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute(query, (new_state, device_id, user_id))
+        connection.commit()
+
+        
+
+        return True
+
+    except mysql.connector.IntegrityError as err:
+        connection.rollback()
+        raise IlegalValuesException("Database integrity error while updating IoT state.") from err
+
+    except mysql.connector.OperationalError as err:
+        connection.rollback()
+        raise ConnectionException("Database connection error while updating IoT state.") from err
+
+    finally:
+        cursor.close()
+        release_connection(connection)
+
+    

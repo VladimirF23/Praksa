@@ -13,6 +13,7 @@ from configJWT import Config            #moja config klasa
 from dotenv import load_dotenv
 import json
 from flask_socketio import SocketIO
+from apscheduler.schedulers.background import BackgroundScheduler
 
 import logging
 logging.basicConfig(level=logging.DEBUG)            #za socketoi logovoanje
@@ -64,7 +65,10 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent',
 #cors_allowed_origins=["http://localhost:3000", "https://localhost","https://solartrack.local"]
 
 
+from apscheduler.schedulers.background import BackgroundScheduler
 
+scheduler = BackgroundScheduler()
+scheduler.start()
 
 
 # Getter da bi mogao drugde da ga koristim
@@ -83,53 +87,16 @@ def get_active_users_from_redis() -> list:
     """
     print("Dohvatam aktivne korisnike iz Redis-a...")
     
-    active_users_data = []
 
     # Koristimo 'keys("user:*")' da pronađemo sve kljuceve aktivnih korisnika.
     # U produkciji sa mnogo kljuceva, 'scan' je bolji od 'keys'.
     user_keys = redis_client.keys("user:*")
+    user_ids = [key.split(":")[1] for key in user_keys]
 
     if not user_keys:
         print("Nema aktivnih korisnika u Redis kesu.")
-        return active_users_data
+        return []
     
-    for user_key in user_keys:
-        try:
-            user_id = user_key.split(b':')[1].decode('utf-8')
-            
-            user_json = redis_client.get(user_key)
-            if not user_json:
-                continue
-            user_data = json.loads(user_json.decode('utf-8'))
-            
-            solar_system_data = None
-            solar_system_id_bytes = redis_client.get(f"user_solar_system_id:{user_id}")
-            if solar_system_id_bytes:
-                solar_system_id = solar_system_id_bytes.decode('utf-8')
-                solar_system_json = redis_client.get(f"solar_system:{solar_system_id}")
-                if solar_system_json:
-                    solar_system_data = json.loads(solar_system_json.decode('utf-8'))
-                    user_data["solar_system_config"] = solar_system_data
-            
-            battery_data = None
-            if solar_system_data and solar_system_data.get('battery_id'):
-                battery_id = solar_system_data['battery_id']
-                battery_json = redis_client.get(f"battery:{battery_id}")
-                if battery_json:
-                    battery_data = json.loads(battery_json.decode('utf-8'))
-                    user_data["battery_config"] = battery_data
-            
-            iot_devices_data = None
-            iot_devices_json = redis_client.get(f"user_iot_devices:{user_id}")
-            if iot_devices_json:
-                iot_devices_data = json.loads(iot_devices_json.decode('utf-8'))
-                user_data["iot_devices_data"] = iot_devices_data
-            
-            active_users_data.append(user_data)
-            
-        except (json.JSONDecodeError, IndexError, TypeError) as e:
-            print(f"Greska prilikom obrade Redis kljuca '{user_key.decode('utf-8')}': {e}")
-            continue
 
-    print(f"Found {len(active_users_data)} active users ")
-    return active_users_data
+    print(f"Found {len(user_keys)} active users ")
+    return user_ids

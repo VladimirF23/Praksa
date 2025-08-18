@@ -9,7 +9,7 @@ import openmeteo_requests
 from retry_requests import retry
 from flask import Blueprint, jsonify, current_app,request
 from flask_jwt_extended import jwt_required, get_jwt_identity,decode_token
-from extensions import redis_client, socketio, get_active_users_from_redis
+from extensions import redis_client, socketio, get_active_users_from_redis, scheduler
 from datetime import datetime, timezone
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -19,8 +19,8 @@ from flask_socketio import SocketIO, join_room, emit
 live_metering_bp = Blueprint('live_metering', __name__)
 
 # Scheduler instance to run background tasks
-scheduler = BackgroundScheduler()
-scheduler.start()
+
+
 
 
 def build_battery_cache_data(battery_id, battery_data):
@@ -198,7 +198,15 @@ def calculate_and_emit_live_data(user_id):
                 iot_devices_data_from_db = GetUsersIOTsService(user_id)
                 if iot_devices_data_from_db:
                     iot_devices_data = iot_devices_data_from_db
-                    redis_client.setex(f"user_iot_devices:{user_id}", 600, json.dumps(iot_devices_data))
+                    #mislim da iot samo mora ovako da se cachira ostali ce raditi normalno, ovo je zbog /auth/me
+                    iot_devices_list_cache = {
+                    "user_id": user_id,
+                    "solar_system_id": system_id,
+                    "devices": iot_devices_data,                      # lista dictionary-a
+                    "last_cached_at": datetime.now().timestamp()
+                    }
+
+                    redis_client.setex(f"user_iot_devices:{user_id}", 600, json.dumps(iot_devices_list_cache))
             
             # Check for required data
             if not all([user_data.get('latitude'), user_data.get('longitude'), solar_system_data.get('total_panel_wattage_wp')]):
@@ -230,14 +238,58 @@ def calculate_and_emit_live_data(user_id):
             
             net_power_kw = solar_production_kw - household_consumption_kw
 
-            #DODAJ IF ako ne postoji baterija da se ovo ne racuna
-            new_charge_percentage, battery_flow_kw = update_battery_charge(battery_data, net_power_kw, time_step_hours=1)
+            net_power_kw = round(net_power_kw,2)
+
+            #DODAJ IF ako ne postoji baterija da se ovo ne racuna, battery_loss_kw se desava zbog efikasnosnti baterije i to moramo istu uracunati da ne bi imao fantomski import i export ka gridu, iako se ta snaga zapravo gubi kod baterije
+            new_charge_percentage, battery_flow_kw, battery_loss_kw = update_battery_charge(battery_data, net_power_kw, time_step_hours=1)
 
             battery_flow_kw = round(battery_flow_kw,2)
             new_charge_percentage = round(new_charge_percentage,2)                      #100.00, 95.23 je ok, a d abi moglo norm da se upise
+            battery_loss_kw = round(battery_loss_kw,2)
 
-            grid_contribution_kw = calculate_grid_contribution(solar_production_kw, household_consumption_kw, battery_flow_kw)
+            grid_contribution_kw = calculate_grid_contribution(solar_production_kw, household_consumption_kw, battery_flow_kw,battery_loss_kw)
             
+            
+            
+            #DODAJ IF DA AKO NE POSTOJI BATERIJA DA SE OVO NE RACUNA , MSM da nema potrebe za if-om
+            flag = UpdateBatteryCurrentPercentageService(battery_id, new_charge_percentage)
+
+
+            alarm_user = None
+            # Treba i reddis updejtovati kao sto smo i bazu updejtovali, Posto mi je ovde bio problem jer nisam u reddi-su updejtovao battery_percentage i onda je on  istao isti kao pre prvog izvrsavanja
+            # i kada je otislo do baze onaj current_row se nije promenio posto je u bazi bilo upsiano 45 a u redisu je ostalo 75 kao originalno i onda je current row bio kao da se nista nije promenilo i ovde mi je bacalo false
+            if battery_data:
+                battery_data["current_charge_percentage"] = new_charge_percentage
+                
+                battery_cache_data = build_battery_cache_data(battery_data["battery_id"], battery_data)     #dodao sam i onaj timestamp kao u svakom cache-ovanju
+
+                redis_client.setex(f"battery:{battery_id}", 1800, json.dumps(battery_cache_data))
+                # Automatizacija uredjaja i onda tipa ako je baterija ispod 50% gase se non critical
+                # ispod 25% gase se svi osim kriticnih uredjaja
+                # samo je fora poslati tipa poruku na front e kao ugasi sve te i te i onda da se Redux updejtuje i tamo
+
+                if iot_devices_data and new_charge_percentage <25:
+                    for device in iot_devices_data:
+                        if device.get("priority_level") !="critical":
+                            device["current_status"] = "off"
+
+                            device_id = int(device["device_id"])
+                            UpdateIotDeviceStateService(device_id,"off",int(user_id))                                     #updejtujemo u bazi takodje
+
+                    
+                    iot_devices_list_cache = {
+                    "user_id": user_id,
+                    "solar_system_id": system_id,
+                    "devices": iot_devices_data,                      # lista dictionary-a
+                    "last_cached_at": datetime.now().timestamp()
+                    }
+
+                    redis_client.setex(f"user_iot_devices:{user_id}", 600, json.dumps(iot_devices_list_cache))
+                        
+                    alarm_user = "Battery is bellow 25% turning off all IoT that are not critical priority"
+
+
+                       
             live_data_payload = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "user_id": user_id,
@@ -248,31 +300,11 @@ def calculate_and_emit_live_data(user_id):
                 "global_tilted_irradiance_instant": current_gti,
                 "grid_contribution_kw": round(grid_contribution_kw, 2),
                 "current_temperature_c": round(current_temperature, 1),
-                "is_day": bool(current_is_day)
+                "battery_loss_kw":round(battery_loss_kw, 2),
+                "is_day": bool(current_is_day),
+                "alarm_user":alarm_user
             }
-            
-            #DODAJ IF DA AKO NE POSTOJI BATERIJA DA SE OVO NE RACUNA , MSM da nema potrebe za if-om
-            flag = UpdateBatteryCurrentPercentageService(battery_id, new_charge_percentage)
-
-            # Ovo bukvalno ne treba jer ako je na 100% i na 0% vise puta onda ce bez razloga fail-ovati jer tamo nam vraca kao na changed row true ili false 
-            # if flag is False:
-            #     print(f"Error: Failed to update battery percentage for user {user_id}")
-            #     return
-
-            # Treba i reddis updejtovati kao sto smo i bazu updejtovali, Posto mi je ovde bio problem jer nisam u reddi-su updejtovao battery_percentage i onda je on  istao isti kao pre prvog izvrsavanja
-            # i kada je otislo do baze onaj current_row se nije promenio posto je u bazi bilo upsiano 45 a u redisu je ostalo 75 kao originalno i onda je current row bio kao da se nista nije promenilo i ovde mi je bacalo false
-
-            battery_data["current_charge_percentage"] = new_charge_percentage
-            
-            battery_cache_data = build_battery_cache_data(battery_data["battery_id"], battery_data)     #dodao sam i onaj timestamp kao u svakom cache-ovanju
-
-            redis_client.setex(f"battery:{battery_id}", 1800, json.dumps(battery_cache_data))
-
-
-
-            #Trebala bi ovde mozda automatizacija za IOT uredjaje
-
-            redis_client.setex(cache_key, 900, json.dumps(live_data_payload))                           #15 minuta da traje cache, 900, testirano i na 30 sekundi radi sve norm
+            redis_client.setex(cache_key, 4, json.dumps(live_data_payload))                           #15 minuta da traje cache, 900, testirano i na 30 sekundi radi sve norm
             
             # Emit data to the connected user via WebSocket
             socketio.emit('live_metering_data', live_data_payload, room=f"user_{user_id}")
@@ -325,31 +357,32 @@ def handle_disconnect():
     print("Client disconnected")
 
 # # --- BACKGROUND TASK ---
-# def scheduled_task_for_all_users():
-#     print("Running scheduled task to update live metering for all users...")
+def scheduled_task_for_all_users():
+    print("Running scheduled task to update live metering for all users...")
 
-#     # Pozivamo funkciju koja dohvaća sve aktivne korisnike iz Redisa
-#     active_users = get_active_users_from_redis()
+    # Pozivamo funkciju koja dohvaća sve aktivne korisnike iz Redisa
+    active_users = get_active_users_from_redis()
 
-#     if not active_users:
-#         print("No active users found to process.")
-#         return
+    if not active_users:
+        print("No active users found to process.")
+        return
 
-#     # Prolazimo kroz svakog aktivnog korisnika
-#     for user_data in active_users:
-#         # Pobrini se da je 'user_id' dostupan i prosledjen kao integer
-#         user_id = user_data.get('user_id')
-#         if user_id:
-#             # Uvek kreiraj novi thread za svaki zadatak da ne bi blokirao scheduler
-#             threading.Thread(target=calculate_and_emit_live_data, args=(int(user_id),)).start()
+    # Prolazimo kroz svakog aktivnog korisnika
+    for user_id in active_users:
+            calculate_and_emit_live_data(int(user_id))
+
+        #threading.Thread(target=calculate_and_emit_live_data, args=(int(user_id),)).start()
     
-#     print("Scheduled task finished.")
+    print("Scheduled task finished.")
 
 # # Add the scheduled job to run every 15 minutes
 
-# OVDE JE PROBLEM JER CE 2 PUT SCHEDULE-OVATI OVAJ POSAO OVO SE TREBA NEGDE IZMESTITI, a i da se 2 puta scheduluje svakako ce biti u cache-u pa nece nista naknadno racunati
-# scheduler.add_job(scheduled_task_for_all_users, 'interval', minutes=15)
+if not scheduler.get_job("live_metering_job"):
+    scheduler.add_job(
+        scheduled_task_for_all_users,
+        "interval",
+        seconds=5,
+        id="live_metering_job"   # unikatni ID
+    )
 
-# --- OLD ENDPOINT REMOVED. New logic is handled by WebSockets and background tasks. ---
-# Note: You would still have a REST endpoint for IoT device updates, which would
-# also trigger a call to calculate_and_emit_live_data.
+

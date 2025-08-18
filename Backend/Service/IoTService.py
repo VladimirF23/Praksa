@@ -64,3 +64,11 @@ def GetUsersIOTsService(user_id:int) ->list[dict]:
 
 
 
+# promenu stanja IoT-a
+def UpdateIotDeviceStateService(device_id:int, new_state:str, user_id:int):
+
+    return UpdateIoTState(device_id, new_state, user_id)
+
+
+
+

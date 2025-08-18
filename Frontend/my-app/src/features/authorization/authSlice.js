@@ -27,14 +27,23 @@ const authSlice = createSlice({
     name:'auth',
     initialState,
     reducers: {
-        loginSuccess:(state,action) =>{
+        loginSuccess: (state, action) => {
             const { user, battery, solar_system, iot_devices } = action.payload;
 
             state.isAuthenticated = true;
-            state.user = user;                  // only the core user
-            state.battery = battery || null;    // store battery info
+            state.user = user;
+            state.battery = battery || null;
             state.solarSystem = solar_system || null;
-            state.iotDevices = iot_devices?.devices || [];
+
+            // Corrected logic to handle both payload structures, i za /me  i za livemetering
+            if (Array.isArray(iot_devices)) {
+                state.iotDevices = iot_devices;
+            } else if (iot_devices && iot_devices.devices && Array.isArray(iot_devices.devices)) {
+                state.iotDevices = iot_devices.devices;
+            } else {
+                state.iotDevices = [];
+            }
+
             state.error = null;
         },
         logout:(state) =>{
@@ -58,6 +67,12 @@ const authSlice = createSlice({
             state.error = action.payload;
             state.loading = false;
 
+        },
+        toggleIotDevice: (state, action) => {
+            const { deviceId, status } = action.payload;
+            state.iotDevices = state.iotDevices.map((d) =>
+                d.device_id === deviceId ? { ...d, current_status: status } : d
+            );
         },
         // MISLIM DA setUserDetails nigde ne koristim i da ne treba
 
@@ -92,5 +107,5 @@ const authSlice = createSlice({
 });
 
 //exportuje action creator-s (loginSuccess... i loggout) za koriscenje u components da bi se discpatch-ovale ove akcije
-export const { loginSuccess, loginFailure, logout, setUserDetails, clearAuthError,setLoading,authCheckStart,authCheckComplete } = authSlice.actions;       
+export const { loginSuccess, loginFailure, logout, setUserDetails, clearAuthError,setLoading,authCheckStart,authCheckComplete,toggleIotDevice } = authSlice.actions;       
 export default authSlice.reducer;                           // funkcija koju Redux zove da updejtuje state

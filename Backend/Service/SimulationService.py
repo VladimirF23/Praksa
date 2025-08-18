@@ -196,7 +196,7 @@ def calculate_household_consumption(solar_system_config:dict, iot_devices_data: 
     return total_household_consumption_kw
 
 
-def calculate_grid_contribution(solar_production_kw: float, household_consumption_kw: float, battery_flow_kw: float) -> float:
+def calculate_grid_contribution(solar_production_kw: float, household_consumption_kw: float, battery_flow_kw: float, battery_loss_kw:float) -> float:
     """
     Cilj funkcije:
         Izracunati trenutnu neto razmenu elektricne snage između domaćinstva i distributivne mreze u kilovatima (kW).
@@ -235,7 +235,7 @@ def calculate_grid_contribution(solar_production_kw: float, household_consumptio
     # grid_contribution_kw < 0  znaci da domacinstvo exportuje u grid
 
     # ovde se se namerno oduzimao od consumption-a da bi nam ostao negativan znak ako je  solar_production_kw veci od household_consumption_kw
-    net_demand_or_surplus = household_consumption_kw - solar_production_kw
+    net_demand_or_surplus = household_consumption_kw - solar_production_kw 
 
     # battery_flow_kw ce se dobijati iz update_battery_charge i ta funkcija nam garantuje da se nece desiti npr imamo production=1kW  consumption = 3kW  i da bude pozitivan(da on se puni tj da trosi) battery_flow_kw = 3kW 
     # jer bi to onda znacilo da cemo i za njega import-ovati iz GRID-a A TO SE NE RADI ! ! !
@@ -245,10 +245,12 @@ def calculate_grid_contribution(solar_production_kw: float, household_consumptio
     # battery_flow_kw <0   on doprinosi da se uvoz iz grid-a smanji kada imamo potrosnja > proizvodnje,  i ako baterija moze da ispegla npr net_demand_or_surplus = 3 kW (sto znaci treba uvest iz grid-a) i battery_flow_kw= - 5k  znaci baterija se prazni i pomaze da se ispegla potrosnja
     # grid_contribution_kw bi trebao da bude 0 tj da se nista ne uvozi iz grid-a 
 
-    
+    #dodamo batter_loss da ne bi smo imali fantomski import ili eksport (zbog efikasnosti baterije se gubi kw punjenja i onda to se eksportuje ili importuje ka gridu sto ne bi trebalo posto je to izgubljeno kod baterije)
+    #to sam imao npr solar production 2kw, household consumption 1 kw,  i onda se bateija puni za 1 kw i zbog efficeny npr 90% , 10kw ce se izgubiti
+    # i onda ce to ovde biti: -1000 w + 990 W (battery flow) =  - 10 W koji se ESKPROTUJU U GRID A TO NE TREBA treba 0 da bude i to sa ovim battery_loss_kw resavamo
 
-    grid_contribution_kw = net_demand_or_surplus + battery_flow_kw
-
+    grid_contribution_kw = net_demand_or_surplus + battery_flow_kw + battery_loss_kw
+ 
     return grid_contribution_kw
 
 def update_battery_charge( battery_config: dict, net_power_kw: float, time_step_hours: float) -> tuple[float, float]:
@@ -280,6 +282,11 @@ def update_battery_charge( battery_config: dict, net_power_kw: float, time_step_
         .                            Snaga kw se mnozi vremenom h da bi se dobila energija kWh
      """
     # Dobijanje konfugiracionih parametara
+
+    # ako korisnik nema bateriju
+    if battery_config is None:
+        return 0.0, 0.0,0.0
+
     capacity_kwh = battery_config.get("capacity_kwh", 0.0)
     current_charge_percentage  = battery_config.get("current_charge_percentage", 0.0)
     max_charge_rate_kw = battery_config.get("max_charge_rate_kw", 0.0)
@@ -291,7 +298,7 @@ def update_battery_charge( battery_config: dict, net_power_kw: float, time_step_
 
     #Ako baterija nema kapacitet (neka greska npr prosledjena)
     if capacity_kwh <= 0:
-        return 0.0, 0.0
+        return 0.0, 0.0,0.0
 
     
     actual_battery_flow_kw = 0.0                                            # Stvarni protok snage ka/iz baterije (kW), >0 onda se baterija puni, <0 onda se baterija prazni
@@ -311,16 +318,20 @@ def update_battery_charge( battery_config: dict, net_power_kw: float, time_step_
         # 1. Dostupne energije preko proizvodnje solarnih panela (nakon efikasnosti punjenja)
         # 2. Maksimalane energije
         # 3. Preostalog kapaciteta baterije
-        charge_amount_kwh = min(
-            energy_available_kwh * efficiency,
+
+        # Energija kojom se puni baterija pre GUBITAKA
+        raw_energy_kwh  = min(
+            energy_available_kwh,
             max_charge_by_rate_kwh,
-            remaining_capacity_kwh
-        )
+            remaining_capacity_kwh / efficiency   #podelimo posto ce gubitci pojesti kapacitet
+        ) 
+
+
     
-        charge_change_kwh = charge_amount_kwh
+        charge_change_kwh = raw_energy_kwh  * efficiency
 
         actual_battery_flow_kw = charge_change_kwh / time_step_hours
-    
+        battery_loss_kw = (raw_energy_kwh - charge_change_kwh) / time_step_hours  # izgubljena snaga
     
     elif net_power_kw< 0:                                                   #potrosnja > proizvodnje, sada koristimo ako je moguce bateriju da ispegla bilans na 0
         energy_needed_kwh = abs(net_power_kw) * time_step_hours             #kolko je energije potrebno
@@ -335,15 +346,20 @@ def update_battery_charge( battery_config: dict, net_power_kw: float, time_step_
         # u principu ovaj minimum garantuje da uzimamo vrednost u granicama, ako baterija moze da dovoljno energije onda samo uracunamo effiecni uz to kolko ce zapravo dati
         # ako baterija moze da vise energije onda pazimo na njen max_discharge_by_rate_kWh
         # i kranje baterije moze da onoliko energije kolko je ona napunjenja trenutno current_charge_kwh = (current_charge_percentage /100.0) * capacity_kwh  # da dabojimo trenutno napunjenost u kWh
-        discharge_amount_kwh = min(
+        raw_energy_kwh  = min(
             energy_needed_kwh / efficiency,                             
             max_discharge_by_rate_kwh,
             current_charge_kwh                                          # Ne moze se isprazniti vise nego što je trenutno u bateriji
         )
 
+        # Effective delivered energy to house
+        discharge_delivered_kwh = raw_energy_kwh * efficiency
 
-        charge_change_kwh = - discharge_amount_kwh                      #promena je negativna jer uzimamo energiju iz baterije tj ona se prazni
+        charge_change_kwh = - raw_energy_kwh                      #promena je negativna jer uzimamo energiju iz baterije tj ona se prazni
         actual_battery_flow_kw = charge_change_kwh / time_step_hours
+
+        battery_loss_kw = (raw_energy_kwh - discharge_delivered_kwh) / time_step_hours  # lost as heat
+
 
     #Izracunamo napunjenost novu baterije, moze se smanjiti/povecati
     new_charge_kwh= current_charge_kwh + charge_change_kwh
@@ -358,4 +374,4 @@ def update_battery_charge( battery_config: dict, net_power_kw: float, time_step_
 
     new_charge_percentage = (new_charge_kwh / capacity_kwh) * 100.0 if capacity_kwh > 0 else 0.0
 
-    return  new_charge_percentage, actual_battery_flow_kw
+    return  new_charge_percentage, actual_battery_flow_kw, battery_loss_kw

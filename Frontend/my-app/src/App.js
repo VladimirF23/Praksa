@@ -13,6 +13,7 @@ import Register from "./pages/Register";
 import ProtectedRoute  from "./components/ProtectedRoute";
 import NotFoundPage from "./pages/NotFoundPage"; 
 import AccessDeniedPage from './pages/AccessDeniedPage';
+import MyProfile from './pages/MyProfile';
 
 //za redus stanje
 import { authCheckStart,loginSuccess,authCheckComplete } from './features/authorization/authSlice';
@@ -137,6 +138,7 @@ useEffect(() => {
       {/* Bilo koji route nestovan ovde ce zahtevati autentifikaciju */}
       <Route element={<ProtectedRoute />}>
       <Route path="/live-metering" element={<LiveMetering />} />
+      <Route path='/profile' element={<MyProfile/>}/>
 
       {/* Add more protected routes here */}
        {/* Primer: <Route path="/live-board" element={<CheckLiveBoard />} /> 

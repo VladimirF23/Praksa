@@ -51,9 +51,7 @@ def login():
 
         redis_client.setex(f"user:{user['user_id']}", 3600, json.dumps(user_cache_data)) # Example TTL: 1 hour (3600 seconds)
 
-        # Cache the mapping for solar system ID (user_solar_system_id:{user_id})
-        # You'll need to fetch the solar_system_id if not already in the 'user' dict.
-        # It's best to fetch this from the DB here if it's not part of the initial 'user' dict.
+
         solar_system_data = GetSolarSystemByUserIdService(user['user_id'])
         if solar_system_data:
             redis_client.set(f"user_solar_system_id:{user['user_id']}", str(solar_system_data['system_id']))
@@ -281,7 +279,12 @@ def get_current_user_details():
 
 
         user_data = json.loads(cached_data_raw.get(f"user:{user_id}")) if cached_data_raw.get(f"user:{user_id}") else None
-        iot_devices_data = json.loads(cached_data_raw.get(f"user_iot_devices:{user_id}")) if cached_data_raw.get(f"user_iot_devices:{user_id}") else None
+        
+        iot_devices_cache = json.loads(cached_data_raw.get(f"user_iot_devices:{user_id}")) if cached_data_raw.get(f"user_iot_devices:{user_id}") else None
+
+            #moramo ovako uzeti iot_devices posto sam ga cudno sacuvao
+        iot_devices_data = iot_devices_cache.get("devices", []) if iot_devices_cache else []
+
         solar_system_data = json.loads(cached_data_raw.get(f"solar_system:{system_id}")) if system_id and cached_data_raw.get(f"solar_system:{system_id}") else None
         battery_data = json.loads(cached_data_raw.get(f"battery:{battery_id}")) if battery_id and cached_data_raw.get(f"battery:{battery_id}") else None
 

@@ -1,5 +1,6 @@
 from extensions import app,socketio  # Umesto kreiranja novih objekata, uvozi ih
 from Backend.API import *
+#from Backend.Service import LiveMeteringWebSocket
 
 
 
@@ -23,6 +24,8 @@ app.wsgi_app = ProxyFix(app.wsgi_app,x_for=1, x_proto=1,x_host=1)
 #ne zaboravi blueprinte da dodas
 app.register_blueprint(registration_blueprint)
 app.register_blueprint(auth_blueprint)
+app.register_blueprint(iot_bp)
+
 # app.register_blueprint(live_metering_bp)
 
 if __name__ =='__main__':
