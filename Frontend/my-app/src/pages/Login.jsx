@@ -71,29 +71,94 @@ const Login = () =>{
 
 
 
-    return (
-        // postojeci JSX za login formu
-        <form onSubmit={handleSubmit}>
-            <div>
-                <label>Username:</label>
-                <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                />
-            </div>
-            <div>
-                <label>Password:</label>
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
-            </div>
-            <button type="submit">Login</button>
-            {error && <p style={{ color: 'red' }}>Error: {error}</p>}
-        </form>
-    );
+return (
+  <div 
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      minHeight: "100vh",
+      backgroundColor: "#f3f4f6"
+    }}
+  >
+    <form 
+      onSubmit={handleSubmit}
+      style={{
+        background: "#fff",
+        padding: "2rem",
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+        width: "100%",
+        maxWidth: "400px"
+      }}
+    >
+      <h2 style={{ textAlign: "center", marginBottom: "1.5rem" }}>Login</h2>
+
+      <div style={{ marginBottom: "1rem" }}>
+        <label style={{ display: "block", marginBottom: ".5rem", fontWeight: "500" }}>
+          Username
+        </label>
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          style={{
+            width: "100%",
+            padding: ".75rem",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+            outline: "none"
+          }}
+          placeholder="Enter your username"
+        />
+      </div>
+
+      <div style={{ marginBottom: "1rem" }}>
+        <label style={{ display: "block", marginBottom: ".5rem", fontWeight: "500" }}>
+          Password
+        </label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{
+            width: "100%",
+            padding: ".75rem",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+            outline: "none"
+          }}
+          placeholder="••••••••"
+        />
+      </div>
+
+      <button
+        type="submit"
+        style={{
+          width: "100%",
+          padding: ".85rem",
+          background: "#2563eb",
+          color: "#fff",
+          fontWeight: "600",
+          border: "none",
+          borderRadius: "8px",
+          cursor: "pointer",
+          transition: "background .3s ease"
+        }}
+        onMouseOver={(e) => (e.target.style.background = "#1e40af")}
+        onMouseOut={(e) => (e.target.style.background = "#2563eb")}
+      >
+        Login
+      </button>
+
+      {error && (
+        <p style={{ color: "red", marginTop: "1rem", textAlign: "center" }}>
+          {error}
+        </p>
+      )}
+    </form>
+  </div>
+);
 
 };
 export default Login;

@@ -4,7 +4,7 @@ import kuca from "./kuca.png";
 import "./pulse.css"; // pulse animation
 import { useSelector,useDispatch } from "react-redux";
 import { updateIotDeviceState  } from "../api/iotApi";
-import { toggleIotDevice } from "../features/authorization/authSlice"; 
+import { toggleIotDevice,setIotDevices } from "../features/authorization/authSlice"; 
 
 
 export default function LiveMetering() {
@@ -71,6 +71,10 @@ const toggleDevice = async (device) => {
       addLog("📡 Live data received: " + JSON.stringify(payload));
       setLiveData(payload);
 
+      if (payload.iot_devices_data) {
+      // overwrite Redux with fresh device states from backend
+      dispatch(setIotDevices(payload.iot_devices_data));
+      }
 
       //alarm za IoT da se pogase svi kojini nisi critical priority i upaljeni su
 
@@ -88,12 +92,12 @@ const toggleDevice = async (device) => {
         setNotification({ visible: false, message: "" });
         }, 5000); // 5000 milliseconds = 5 seconds
 
-        iotDevices.forEach(device => {
-          if (device.current_status === "on" && device.priority_level !== "critical") {
-            dispatch(toggleIotDevice({ deviceId: device.device_id, status: "off" }));         //u Redux-u da updejtujemo posto sam na backendu vec updejtovao
-            addLog(`Device ${device.device_name} turned off due to not being critical priority.`);
-          }
-        });
+        // iotDevices.forEach(device => {
+        //   if (device.current_status === "on" && device.priority_level !== "critical") {
+        //     dispatch(toggleIotDevice({ deviceId: device.device_id, status: "off" }));         //u Redux-u da updejtujemo posto sam na backendu vec updejtovao
+        //     addLog(`Device ${device.device_name} turned off due to not being critical priority.`);
+        //   }
+        // });
       }
 
 

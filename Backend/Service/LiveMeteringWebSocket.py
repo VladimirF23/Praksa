@@ -302,7 +302,8 @@ def calculate_and_emit_live_data(user_id):
                 "current_temperature_c": round(current_temperature, 1),
                 "battery_loss_kw":round(battery_loss_kw, 2),
                 "is_day": bool(current_is_day),
-                "alarm_user":alarm_user
+                "alarm_user":alarm_user,
+                "iot_devices_data":iot_devices_data                                                   # resenje onog bug-a sa tim da se ne ne gase non critical uredjaji automatski kada padne na <25%
             }
             redis_client.setex(cache_key, 4, json.dumps(live_data_payload))                           #15 minuta da traje cache, 900, testirano i na 30 sekundi radi sve norm
             

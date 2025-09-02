@@ -40,33 +40,31 @@ export default function MyProfile() {
 
         {/* Solar System Info */}
         {solarSystem && (
-          <div className="bg-white p-6 rounded-2xl shadow-md">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              ☀️ Solar System
-            </h2>
+        <div className="bg-white p-6 rounded-2xl shadow-md">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">☀️ Solar System</h2>
             <div className="grid sm:grid-cols-2 gap-4">
-              <p><span className="font-semibold">System Name:</span> {user.system_name}</p>
-              <p><span className="font-semibold">Type:</span> {user.system_type}</p>
-              <p><span className="font-semibold">Panel Wattage:</span> {user.total_panel_wattage_wp} Wp</p>
-              <p><span className="font-semibold">Azimuth:</span> {user.azimuth_degrees}°</p>
-              <p><span className="font-semibold">Tilt:</span> {user.tilt_degrees}°</p>
-              <p><span className="font-semibold">Inverter:</span> {user.inverter_capacity_kw} kW</p>
+            <p><span className="font-semibold">System Name:</span> {solarSystem.system_name}</p>
+            <p><span className="font-semibold">Type:</span> {solarSystem.system_type}</p>
+            <p><span className="font-semibold">Panel Wattage:</span> {solarSystem.total_panel_wattage_wp} Wp</p>
+            <p><span className="font-semibold">Azimuth:</span> {solarSystem.azimuth_degrees}°</p>
+            <p><span className="font-semibold">Tilt:</span> {solarSystem.tilt_degrees}°</p>
+            <p><span className="font-semibold">Inverter:</span> {solarSystem.inverter_capacity_kw} kW</p>
             </div>
-          </div>
+        </div>
         )}
 
         {/* Battery Info */}
         {battery && (
-          <div className="bg-white p-6 rounded-2xl shadow-md">
+        <div className="bg-white p-6 rounded-2xl shadow-md">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">🔋 Battery</h2>
             <div className="grid sm:grid-cols-2 gap-4">
-              <p><span className="font-semibold">Model:</span> {user.model_name}</p>
-              <p><span className="font-semibold">Capacity:</span> {user.capacity_kwh} kWh</p>
-              <p><span className="font-semibold">Charge %:</span> {user.current_charge_percentage}%</p>
-              <p><span className="font-semibold">Efficiency:</span> {user.efficiency * 100}%</p>
-              <p><span className="font-semibold">Manufacturer:</span> {user.manufacturer}</p>
+            <p><span className="font-semibold">Model:</span> {battery.model_name}</p>
+            <p><span className="font-semibold">Capacity:</span> {battery.capacity_kwh} kWh</p>
+            <p><span className="font-semibold">Charge:</span> {battery.current_charge_percentage}%</p>
+            <p><span className="font-semibold">Efficiency:</span> {battery.efficiency * 100}%</p>
+            <p><span className="font-semibold">Manufacturer:</span> {battery.manufacturer}</p>
             </div>
-          </div>
+        </div>
         )}
 
         {/* IoT Devices */}

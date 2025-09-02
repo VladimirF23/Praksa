@@ -68,7 +68,12 @@ const authSlice = createSlice({
             state.loading = false;
 
         },
-        toggleIotDevice: (state, action) => {
+
+         // novi reducer za when backend sends a fresh list (after /me fetch, or via socket when automation kicked in).
+        setIotDevices: (state, action) => {
+            state.iotDevices = action.payload || [];
+        },
+        toggleIotDevice: (state, action) => {                               //a ovo je kada user manuelno interektuje sa IoT (clikne na UI)
             const { deviceId, status } = action.payload;
             state.iotDevices = state.iotDevices.map((d) =>
                 d.device_id === deviceId ? { ...d, current_status: status } : d
@@ -107,5 +112,5 @@ const authSlice = createSlice({
 });
 
 //exportuje action creator-s (loginSuccess... i loggout) za koriscenje u components da bi se discpatch-ovale ove akcije
-export const { loginSuccess, loginFailure, logout, setUserDetails, clearAuthError,setLoading,authCheckStart,authCheckComplete,toggleIotDevice } = authSlice.actions;       
+export const { loginSuccess, loginFailure, logout, setUserDetails, clearAuthError,setLoading,authCheckStart,authCheckComplete,setIotDevices ,toggleIotDevice } = authSlice.actions;       
 export default authSlice.reducer;                           // funkcija koju Redux zove da updejtuje state
