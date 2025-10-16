@@ -118,7 +118,7 @@ def login():
                 "username": user["username"],           
                 "user_type": user["user_type"]  
             },
-            expires_delta=timedelta(minutes=15) # 20 sekundi za testiranje
+            expires_delta=timedelta(seconds=15) # 20 sekundi za testiranje
         )
         
         refresh_token = create_refresh_token(
@@ -331,6 +331,7 @@ def get_current_user_details():
                     "base_consumption_kw": solar_system_data["base_consumption_kw"],
                     "tilt_degrees": solar_system_data["tilt_degrees"],
                     "azimuth_degrees": solar_system_data["azimuth_degrees"],
+                    "approved":solar_system_data["approved"],                       #DODATO ako ga je admin aprove-ovao onda je 1
                     "last_cached_at": datetime.now().timestamp()
                 }
 

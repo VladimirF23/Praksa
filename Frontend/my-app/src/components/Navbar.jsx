@@ -1,8 +1,12 @@
+// src/components/Navbar.jsx
 import { Link, useNavigate } from "react-router-dom";
 import { Search, User } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
-import { logout } from "../features/authorization/authSlice";    // Redux logoaut
-import {logoutUser} from "../api/authApi";                      // importujemo API backend call           
+// import { logout } from "../features/authorization/authSlice";    // Redux logoaut
+// import {logoutUser} from "../api/authApi";                      // importujemo API backend call
+
+import { handleLogout } from "../services/authServices"; // <--- NOVI IMPORT
+
 
 //login ce se na drugom mestu desavati posto ce se morati popouniti forma login-a
 
@@ -31,23 +35,26 @@ const Navbar = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate()
 
-    const handleLogout = async () => {
-        try {
-            await logoutUser(); // Call the backend logout API
-            dispatch(logout()); // Dispatch Redux logout action
-            navigate('/'); // Redirect to login page after logout
-        } catch (error) {
-            console.error("Logout failed:", error);
-            // opcionalno dispatch error ka Redux ako imamo error state za global issues
-            // za sad ga log-ujemo. If logout fails uglavnom je backend problem
-            // a cisitmo client-side svakako
-            dispatch(logout()); // Osiguramo client-side state je ociscen cak i ako API fail-uje
-            navigate('/');     // na pocetnu stranicu se navigatujemo
-        }
+    // const handleLogout = async () => {
+    //     try {
+    //         await logoutUser(); // Call the backend logout API
+    //         dispatch(logout()); // Dispatch Redux logout action
+    //         navigate('/'); // Redirect to login page after logout
+    //     } catch (error) {
+    //         console.error("Logout failed:", error);
+    //         // opcionalno dispatch error ka Redux ako imamo error state za global issues
+    //         // za sad ga log-ujemo. If logout fails uglavnom je backend problem
+    //         // a cisitmo client-side svakako
+    //         dispatch(logout()); // Osiguramo client-side state je ociscen cak i ako API fail-uje
+    //         navigate('/');     // na pocetnu stranicu se navigatujemo
+    //     }
+    // };
+
+
+    // Wrapper funkcija koja poziva servis sa Hook-ovima
+    const performLogout = () => {
+        handleLogout(dispatch, navigate);
     };
-
-
-
 
     return (
         // Glavni navbar kontejner sa flex-om da sve bude horizontalno
@@ -80,7 +87,7 @@ const Navbar = () => {
                         </Link>
                         {/* Dugme za logout */}
                         <button 
-                            onClick={handleLogout}                      //a ne  handleLogout() zato sto ako je zagradam react odma poziva i user se logoutuje bez da se klikne na dugme
+                            onClick={performLogout}                      //a ne  handleLogout() zato sto ako je zagradam react odma poziva i user se logoutuje bez da se klikne na dugme
                             className="bg-red-500 px-3 py-1 rounded-lg"
                         >
                             Logout

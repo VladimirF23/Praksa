@@ -52,7 +52,7 @@ CREATE TABLE solar_systems (
     tilt_degrees INT,                                                 -- Nagib panela u stepenima (0-90, 0=horizontalno, 90=vertikalno)
     azimuth_degrees INT,                                              -- Azimut panela u stepenima (0-359, 180=jug, 90=istok, 270=zapad, 0/360=sever)
 
-
+    approved TINYINT(1) NOT NULL DEFAULT 0,                           -- 0 = Nije odobreno (Default), 1 = Odobreno
 
     -- FOREIGN KEY Constraint-ovi                                     -- Podsetnik strani kljuc obezbedjuje: da vrednosti u jednoj tabeli odgovaraju vrednostima u drugoj tabeli tj da nema sirocadi, user_id u ovoj tabeli mora postojati u tabeli users
                                                                       -- takodje regulise automatski brisanje i azuziranje pomocu ON DELETE i ON UPDATE, znaci ako se user obrise u tabeli users obrisace se solarni sistem koji je imao fk na taj id u tabeli users

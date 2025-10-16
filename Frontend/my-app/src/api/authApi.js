@@ -1,5 +1,5 @@
 
-// /authApi.js
+// src/api/authApi.js
 import axios from "axios";
 import axiosInstance  from "./axiosInstance";
 import AuthError  from "../utils/AuthError";
@@ -104,4 +104,28 @@ export const refreshToken = async() =>{
     
     }
 
+};
+export const fetchUserDetails = async () => {
+    try {
+        // Koristimo axiosInstance (onaj koji ima interceptore za refresh)
+        const response = await axiosInstance.get('/api/auth/me'); 
+        return response.data; // Vraca podatke o korisniku
+    } catch (error) {
+        console.error("DEBUG authApi: fetchUserDetails failed:", error.response?.data || error.message);
+        throw error; // Propagiraj grešku
+    }
+};
+
+
+export const registerUser = async (registrationData) => {
+    try {
+        //  backend endpoint je: /registration
+        const response = await axiosInstance.post('/api/registration', registrationData);
+        // Ne vraća korisnika, već postavlja kolačiće.
+        return response.data; 
+    } catch (error) {
+        console.error("DEBUG authApi: registerUser failed:", error.response?.data || error.message);
+        // Baci gresku nazad u servisni sloj
+        throw error;
+    }
 };

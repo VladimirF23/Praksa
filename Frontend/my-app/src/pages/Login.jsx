@@ -1,3 +1,4 @@
+// src/pages/Login.jsx
 //login forma, handluje submisiion od user-a, dispatchuje login action i menaguje error-e
 //updejtuje redux store
 
@@ -6,10 +7,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { loginUser } from "../api/authApi";
 
 //Reduceri za redux store state
-import { loginSuccess,loginFailure,clearAuthError} from "../features/authorization/authSlice";
-import axiosInstance from "../api/axiosInstance";
+// import { loginSuccess,loginFailure,clearAuthError} from "../features/authorization/authSlice";
+// import axiosInstance from "../api/axiosInstance";
 import { useNavigate } from 'react-router-dom'; 
 
+import { handleLogin } from "../services/authServices"; // <--- NOVI IMPORT SERVISA
 
 
 
@@ -35,39 +37,47 @@ const Login = () =>{
     const dispatch = useDispatch()
     const navigate = useNavigate(); // inicijalizujemo navigate hook, ako se uspesno loginuje dole ga pomerimo na homepage
 
+    const handleSubmit = async(e) => {
+        e.preventDefault(); 
+        
+        // Pozivamo servis sa credentials, dispatch-om i navigate-om
+        const credentials = { username, password };
+        await handleLogin(credentials, dispatch, navigate);
+    };
+
 
     //handlujemo submit logina
-    const handleSubmit = async(e) =>{
-        e.preventDefault();                 //preventujemo page reload
-        dispatch(clearAuthError());         //ocistimo prethodne error-e
-        try{
-            const credentials = {username,password};
+    // const handleSubmit = async(e) =>{
+    //     e.preventDefault();                 //preventujemo page reload
+    //     dispatch(clearAuthError());         //ocistimo prethodne error-e
+    //     try{
+    //         const credentials = {username,password};
 
-            //calujemo login AXIOS-a koji salje API-u, Ovo ce set-ovati HTTPOnly cookies 
-            await loginUser(credentials)
-            const userDetailsResponse = await axiosInstance.get('/api/auth/me');                    // novi API call treba samo da dodam   
-            const userDetails = userDetailsResponse.data;
+    //         //calujemo login AXIOS-a koji salje API-u, Ovo ce set-ovati HTTPOnly cookies 
+    //         await loginUser(credentials)
+    //         const userDetailsResponse = await axiosInstance.get('/api/auth/me');                    // novi API call treba samo da dodam   
+    //         const userDetails = userDetailsResponse.data;
 
-            console.log("DEBUG POSLE USPESNOG LOGIN-a: userDetails before dispatch", userDetails);
+    //         console.log("DEBUG POSLE USPESNOG LOGIN-a: userDetails before dispatch", userDetails);
 
-            dispatch(loginSuccess(userDetails));                                                    // Dispatch-ujemo ka Redux-u sa podacima od user-a
-            navigate('/');                                                                          // Na home page ga redirectujemo
+    //         dispatch(loginSuccess(userDetails));                                                    // Dispatch-ujemo ka Redux-u sa podacima od user-a
+    //         navigate('/');                                                                          // Na home page ga redirectujemo
 
 
 
-            //Ne treba mi local storage jer Browser menagaguje HttpOnly cookie 
-            //localStorage.setItem('token',data.access_token)   
+    //         //Ne treba mi local storage jer Browser menagaguje HttpOnly cookie 
+    //         //localStorage.setItem('token',data.access_token)   
             
-        }catch(err){
+    //     }catch(err){
 
-            //mi dispatchujemo ovo, redux salje action ka reducer-u loginFailiure (AuthSlice), reducer kalkulise nove stanje i akciju, store save-uje novo stanje
-            //UI componente slusaju store i updejtuju sami sebe na osnovu novog state-a
-            const errorMessage = err.response?.data?.message || err.message || "Login failed";
+    //         //mi dispatchujemo ovo, redux salje action ka reducer-u loginFailiure (AuthSlice), reducer kalkulise nove stanje i akciju, store save-uje novo stanje
+    //         //UI componente slusaju store i updejtuju sami sebe na osnovu novog state-a
+    //         const errorMessage = err.response?.data?.message || err.message || "Login failed";
             
-            //treba samo 1 parametar objasnio sam u authSlice-u sto
-            dispatch(loginFailure(errorMessage));
-        }
-    };
+    //         //treba samo 1 parametar objasnio sam u authSlice-u sto
+    //         dispatch(loginFailure(errorMessage));
+    //     }
+    // };
 
 
 
