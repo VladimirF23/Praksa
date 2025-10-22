@@ -83,3 +83,14 @@ def LoginUserService(user:dict):
 
     #user["password"] = HashPassword(user["password"])   NE TREBA DA SE HASHUJE SIFRA ZBOG SALT-a ONDA SE NIKAD NECE POREDITI ISTI HASH CAK I AKO SE UNETA SIFRA POKLAPA SA DB sifrom 
     return GerUserCredentials(user)                     #DB sloj vraca dict tip, ako je sve ok vratice user-a sa infom
+
+
+
+def GetAllUsersWithSystemDataService()-> list[dict]:
+
+    return GetAllUsersWithSystemData()
+
+
+def UpdateUserApprovalStatusService(system_id, approved):
+
+    return UpdateUserApprovalStatus(system_id, approved)

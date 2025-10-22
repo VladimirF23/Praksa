@@ -8,7 +8,7 @@ const Home = () => {
     // Opcionalno, proverite i loading state da bi se izbeglo prikazivanje greske
     const isLoading = useSelector((state) => state.auth.loading);
 
-
+    const  user  = useSelector((state)=> state.auth.user);
     // 1. Definicija Poruka na osnovu statusa
     let messageComponent;
     let color;
@@ -17,7 +17,7 @@ const Home = () => {
         // Prikazuje se dok se proverava authenfikacija (auth check)
         messageComponent = (
             <>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: "600", color: "#3B82F6" }}>Učitavanje statusa sistema...</h2>
+                <h2 style={{ fontSize: "1.2rem", fontWeight: "600", color: "#3B82F6" }}>Loading system status...</h2>
             </>
         );
         color = "#3B82F6"; // Plava
@@ -25,33 +25,41 @@ const Home = () => {
         // Ako korisnik nema registrovan solar_system (sto ne bi trebalo da se desi nakon registera)
         messageComponent = (
             <>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: "600", color: "#F59E0B" }}>Nema Konfigurisanog Sistema</h2>
+                <h2 style={{ fontSize: "1.2rem", fontWeight: "600", color: "#F59E0B" }}>No Configured System</h2>
                 <p style={{ fontSize: "1rem", color: "#D97706", marginTop: "0.5rem" }}>
-                    Molimo vas da registrujete svoj solarni sistem kako biste počeli sa praćenjem.
+                    Please register your solar system so you can start tracking your solar data.
                 </p>
             </>
         );
         color = "#F59E0B"; // Zuta
     } else if (approvedStatus === 0) {
         // approved = 0 (NIJE ODOBRENO)
+
+        if(user?.user_type=="regular"){
         messageComponent = (
             <>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: "600", color: "#DC2626" }}>PAŽNJA: Konfiguracija Nije Potvrđena</h2>
+                <h2 style={{ fontSize: "1.2rem", fontWeight: "600", color: "#DC2626" }}>ALERT: Solar Configuration hasn't been approved by admin</h2>
                 <p style={{ fontSize: "1rem", color: "#EF4444", marginTop: "0.5rem" }}>
-                    Admin tim još uvek nije potvrdio ispravnost vaše solarne konfiguracije. 
-                    Prikazani podaci o potrošnji/proizvodnji mogu odstupati od realnih merenja.
+                    Admin team didnt yet approve your Solar Configuration. 
+                    Shown data about production/consumption can be wrong.
                 </p>
             </>
         );
         color = "#DC2626"; // Crvena
+        }else{
+       messageComponent = (
+                <h2 style={{ fontSize: "1.2rem", fontWeight: "600", color: "#DC2626" }}>Welcome admin</h2>
+
+            );
+        }
     } else {
         // approved = 1 (ODOBRENO)
         messageComponent = (
             <>
-                <h2 style={{ fontSize: "1.2rem", fontWeight: "600", color: "#10B981" }}>Konfiguracija Sistema je Odobrena</h2>
+                <h2 style={{ fontSize: "1.2rem", fontWeight: "600", color: "#10B981" }}>Solar Configuration is Approved</h2>
                 <p style={{ fontSize: "1rem", color: "#059669", marginTop: "0.5rem" }}>
-                    Vaša solarna konfiguracija je potvrđena od strane administratora. 
-                    Merenja i simulacije se smatraju ispravnim i pouzdanim.
+                    Your Solar Configuration is approved by our admins. 
+                    Metering and Simulation data are correct and reliable.
                 </p>
             </>
         );

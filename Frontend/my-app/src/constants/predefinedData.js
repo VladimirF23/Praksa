@@ -13,7 +13,7 @@ export const PREDEFINED_BATTERIES = [
         max_charge_rate_kw: 5.0,
         max_discharge_rate_kw: 5.0,
         efficiency: 0.92,
-        image: '/battery.jpg' // Pretpostavljena putanja do slike
+        image: '/battery.jpg' 
     },
     { 
         id: 2, 

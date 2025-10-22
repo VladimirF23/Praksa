@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import kuca from "./kuca.png";
+const kuca = process.env.PUBLIC_URL + "/kuca.png";
 import "./pulse.css"; // pulse animation
 import { useSelector,useDispatch } from "react-redux";
-import { updateIotDeviceState  } from "../api/iotApi";
-import { toggleIotDevice,setIotDevices } from "../features/authorization/authSlice"; 
+import { updateIotDeviceState,updateIotDevicePriority  } from "../api/iotApi";
+import { toggleIotDevice,setIotDevices,updateIotDevicePriorityRedux } from "../features/authorization/authSlice"; 
 
+
+const PRIORITY_LEVELS = [
+    { value: "critical", label: "Critical" },
+    { value: "medium", label: "Medium" },
+    { value: "low", label: "Low" },
+    { value: "non_essential", label: "Non-Essential" },
+];
 
 export default function LiveMetering() {
   const [status, setStatus] = useState("connecting");
@@ -21,18 +28,35 @@ export default function LiveMetering() {
   const iotDevices = useSelector((state) => state.auth.iotDevices || []);
 
 
-const toggleDevice = async (device) => {
-  try {
-    const newStatus = device.current_status === "on" ? "off" : "on"; // flip state
-    
-    await updateIotDeviceState(device.device_id, newStatus); // send "on"/"off"
+  const toggleDevice = async (device) => {
+      try {
+        const newStatus = device.current_status === "on" ? "off" : "on"; // flip state
+        
+        await updateIotDeviceState(device.device_id, newStatus); // send "on"/"off"
 
-    // update Redux state
-    dispatch(toggleIotDevice({ deviceId: device.device_id, status: newStatus }));
-  } catch (err) {
-    console.error("Failed to toggle device", err);
-  }
-};
+        // update Redux state
+        dispatch(toggleIotDevice({ deviceId: device.device_id, status: newStatus }));
+      } catch (err) {
+        console.error("Failed to toggle device", err);
+      }
+    };
+
+  const updateDevicePriority = async (deviceId, newPriority) => {
+    try {
+        addLog(`Attempting to set priority for device ${deviceId} to ${newPriority}...`);
+          await updateIotDevicePriority(deviceId, newPriority);
+
+        dispatch(updateIotDevicePriorityRedux({ 
+              deviceId: deviceId, 
+              priority: newPriority 
+          }));
+
+        addLog(`✅ Priority for device ${deviceId} set to ${newPriority}.`);
+      } catch (err) {
+      console.error("Failed to update device priority", err);
+      addLog(`❌ Failed to update priority for device ${deviceId}.`);
+    }
+  };
 
 
   const addLog = (message) => {
@@ -55,6 +79,11 @@ const toggleDevice = async (device) => {
     socket.on("connect", () => {
       addLog("✅ Connection successful. Socket ID: " + socket.id);
       setStatus("connected");
+    });
+
+    socket.on("test_event", (data) => {
+      addLog("📨 Test event received: " + JSON.stringify(data));
+      console.log("Received test event:", data);
     });
 
     socket.on("connect_error", (err) => {
@@ -335,19 +364,35 @@ const toggleDevice = async (device) => {
                       >
                         Priority: {device.priority_level.replace("_", " ").toUpperCase()}
                       </p>
+                      {/* --- NEW PRIORITY SELECT DROPDOWN --- */}
+                      <label className="block text-xs font-medium text-gray-700 mt-2">
+                            Update Priority:
+                            <select
+                                value={device.priority_level}
+                                onChange={(e) => updateDevicePriority(device.device_id, e.target.value)}
+                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                {PRIORITY_LEVELS.map((level) => (
+                                    <option key={level.value} value={level.value}>
+                                        {level.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+
                   </div>
-                  {device.is_smart_device && (
-                    <button
-                      onClick={() => toggleDevice(device)}
-                      className={`mt-3 py-1 px-3 rounded ${
-                        device.current_status === "on"
-                          ? "bg-red-500 hover:bg-red-600 text-white"
-                          : "bg-green-500 hover:bg-green-600 text-white"
-                      }`}
-                    >
-                      {device.current_status === "on" ? "Turn Off" : "Turn On"}
-                    </button>
-                  )}
+                    {device.is_smart_device && (
+                      <button
+                        onClick={() => toggleDevice(device)}
+                        className={`mt-3 py-1 px-3 rounded ${
+                          device.current_status === "on"
+                            ? "bg-red-500 hover:bg-red-600 text-white"
+                            : "bg-green-500 hover:bg-green-600 text-white"
+                        }`}
+                      >
+                        {device.current_status === "on" ? "Turn Off" : "Turn On"}
+                      </button>
+                    )}
                 </div>
               ))}
             </div>

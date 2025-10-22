@@ -1,3 +1,5 @@
+
+#main.py
 from extensions import app,socketio  # Umesto kreiranja novih objekata, uvozi ih
 from Backend.API import *
 #from Backend.Service import LiveMeteringWebSocket
@@ -27,6 +29,10 @@ app.register_blueprint(auth_blueprint)
 app.register_blueprint(iot_bp)
 
 # app.register_blueprint(live_metering_bp)
+
+
+
+#
 
 if __name__ =='__main__':
     # Start SocketIO instead of Flask's built-in run

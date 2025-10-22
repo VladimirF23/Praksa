@@ -9,9 +9,14 @@ import openmeteo_requests
 from retry_requests import retry
 from flask import Blueprint, jsonify, current_app,request
 from flask_jwt_extended import jwt_required, get_jwt_identity,decode_token
-from extensions import redis_client, socketio, get_active_users_from_redis, scheduler
+from extensions import redis_client, get_active_users_from_redis #scheduler,socketio ovo su imporit sto su bili ovde samo su zakomentarisani da probam sa celery-em
 from datetime import datetime, timezone
-from apscheduler.schedulers.background import BackgroundScheduler
+#from apscheduler.schedulers.background import BackgroundScheduler
+try:
+    from extensions import socketio as default_socketio
+except Exception:
+    default_socketio = None
+
 
 from flask_socketio import SocketIO, join_room, emit
 
@@ -107,14 +112,15 @@ def get_live_irradiance(latitude, longitude, tilt, azimuth, user_id):
         return None
 
 #TODO dodaj da ako je vec izracunati podaci da se samo uzme iz cache-a da bih sprecio da kada user se npr logoutuje i ponovo udje da mu smanji % baterije za 2 puta
-def calculate_and_emit_live_data(user_id):
+def calculate_and_emit_live_data(user_id, emitter=None):
     """
     Performs all the live metering calculations and emits the data via WebSocket.
     This function can be called from multiple places:
     1. The background scheduler (every 15 minutes)
     2. A user action (e.g., turning on an IoT device)
     """
-    #with current_app.app_context():  OVO JE NESTO ZA THREAD-OVE
+    if emitter is None:
+        emitter = default_socketio
     try:
             cache_key = f"live_metering_data:{user_id}"
             
@@ -126,7 +132,7 @@ def calculate_and_emit_live_data(user_id):
             if live_data_payload_cache:
                 live_data_payload_cache = json.loads(live_data_payload_cache);    
 
-                socketio.emit('live_metering_data', live_data_payload_cache, room=f"user_{user_id}")
+                emitter.emit('live_metering_data', live_data_payload_cache, room=f"user_{user_id}")
                 print(f"Emitted CACHE data for user {user_id}")
                 return
                  
@@ -305,17 +311,17 @@ def calculate_and_emit_live_data(user_id):
                 "alarm_user":alarm_user,
                 "iot_devices_data":iot_devices_data                                                   # resenje onog bug-a sa tim da se ne ne gase non critical uredjaji automatski kada padne na <25%
             }
-            redis_client.setex(cache_key, 4, json.dumps(live_data_payload))                           #15 minuta da traje cache, 900, testirano i na 30 sekundi radi sve norm
+            redis_client.setex(cache_key, 4, json.dumps(live_data_payload))                           #4 sekunde  traje cache
             
             # Emit data to the connected user via WebSocket
-            socketio.emit('live_metering_data', live_data_payload, room=f"user_{user_id}")
+            emitter.emit('live_metering_data', live_data_payload, room=f"user_{user_id}")
             print(f"Emitted new data for user {user_id}")
 
     except Exception as e:
         print(f"An unexpected error occurred during calculation for user {user_id}: {e}")
 
 # --- WEB SOCKET HANDLERS ---
-@socketio.on('connect')
+@default_socketio.on('connect')
 def handle_connect():
     print("--- [DEBUG] handle_connect function entered ---")
     
@@ -353,37 +359,37 @@ def handle_connect():
         return False
 
 
-@socketio.on('disconnect')
+@default_socketio.on('disconnect')
 def handle_disconnect():
     print("Client disconnected")
 
-# # --- BACKGROUND TASK ---
-def scheduled_task_for_all_users():
-    print("Running scheduled task to update live metering for all users...")
+# # # --- BACKGROUND TASK ---
+# def scheduled_task_for_all_users():
+#     print("Running scheduled task to update live metering for all users...")
 
-    # Pozivamo funkciju koja dohvaća sve aktivne korisnike iz Redisa
-    active_users = get_active_users_from_redis()
+#     # Pozivamo funkciju koja dohvaća sve aktivne korisnike iz Redisa
+#     active_users = get_active_users_from_redis()
 
-    if not active_users:
-        print("No active users found to process.")
-        return
+#     if not active_users:
+#         print("No active users found to process.")
+#         return
 
-    # Prolazimo kroz svakog aktivnog korisnika
-    for user_id in active_users:
-            calculate_and_emit_live_data(int(user_id))
+#     # Prolazimo kroz svakog aktivnog korisnika
+#     for user_id in active_users:
+#             calculate_and_emit_live_data(int(user_id))
 
-        #threading.Thread(target=calculate_and_emit_live_data, args=(int(user_id),)).start()
+#         #threading.Thread(target=calculate_and_emit_live_data, args=(int(user_id),)).start()
     
-    print("Scheduled task finished.")
+#     print("Scheduled task finished.")
 
-# # Add the scheduled job to run every 15 minutes
+# # # Add the scheduled job to run every 5 seconds
 
-if not scheduler.get_job("live_metering_job"):
-    scheduler.add_job(
-        scheduled_task_for_all_users,
-        "interval",
-        seconds=5,
-        id="live_metering_job"   # unikatni ID
-    )
+# if not scheduler.get_job("live_metering_job"):
+#     scheduler.add_job(
+#         scheduled_task_for_all_users,
+#         "interval",
+#         seconds=5,
+#         id="live_metering_job"   # unikatni ID
+#     )
 
 

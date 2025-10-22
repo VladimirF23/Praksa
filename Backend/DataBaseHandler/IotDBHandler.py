@@ -132,4 +132,49 @@ def UpdateIoTState(device_id: int, new_state: str, user_id: int) -> bool:
         cursor.close()
         release_connection(connection)
 
+
+
+def UpdateIoTPriority(device_id: int, new_priority: str, user_id: int) -> bool:
+    """
+    Updates the priority_level of an IoT device for a specific user.
+    
+    Args:
+        device_id (int): The ID of the IoT device.
+        new_priority (str): New priority level.
+        user_id (int): The ID of the user who owns the device (security check).
+
+    Returns:
+        bool: True if the update was successful (and affected at least one row).
+    """
+
+    query = """
+        UPDATE iot_devices
+        SET priority_level = %s
+        WHERE device_id = %s AND user_id = %s
+    """
+
+    connection = getConnection()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute(query, (new_priority, device_id, user_id))
+        connection.commit()
+
+
+
+        return True
+
+    except mysql.connector.IntegrityError as err:
+        connection.rollback()
+        # This primarily catches attempts to use a value not in the ENUM, 
+        raise IlegalValuesException("Database integrity error: Invalid priority value or other constraint violation.") from err
+
+    except mysql.connector.OperationalError as err:
+        connection.rollback()
+        raise ConnectionException("Database connection error while updating IoT priority.") from err
+
+    finally:
+        cursor.close()
+        release_connection(connection)
+
     

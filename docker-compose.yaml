@@ -88,8 +88,31 @@ services:
       - ./nginx/certs:/etc/nginx/certs:ro                               #ovako je najbolje zbog sigurnosti, napisao sam u nginx docker file zato da ne koristim COPY tih cert, ro ->read only
 
 
+  celery-worker:
+    build: .
+    container_name: celery-worker-praksa
+    command: celery -A celery_app.celery worker --loglevel=info --without-mingle --pool=gevent --concurrency=5    #, Mingle was causing a significant delay (over a minute and a half) during the worker startup. Using --without-mingle removes this discovery phase, allowing your worker to become ready to process tasks almost instantly after connecting to Redis.
+    entrypoint: ""  # override default entrypoint
 
+    depends_on:
+      - redis-praksa  # Celery only depends on Redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - backend-network-praksa
 
+  celery-beat:
+    build: .
+    container_name: celery-beat-praksa
+    command: celery -A celery_app.celery beat --loglevel=info
+    entrypoint: ""
+
+    depends_on:
+      - redis-praksa
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - backend-network-praksa
 
 networks:
   backend-network-praksa:                                              # koristimo takodje 2 networka zbog bezbednosti NGINX ce imati pristup oba ali sa interneta se nece moci direktno pristupiti backendu bez da se prodje NGINX proxy 

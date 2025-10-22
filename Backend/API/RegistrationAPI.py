@@ -268,7 +268,6 @@ def register_user():
         pipe.setex(f"user:{user_id}", 3600, json.dumps(user_cache_data))
 
         solar_system_id = solar_system_db["system_id"]
-
         # 3. Cache Solar System Data
         solar_system_cache_data = {
             "system_id": solar_system_id,
@@ -281,6 +280,7 @@ def register_user():
             "base_consumption_kw": solar_system_db["base_consumption_kw"],
             "tilt_degrees": solar_system_db["tilt_degrees"],
             "azimuth_degrees": solar_system_db["azimuth_degrees"],
+            "approved":solar_system_db["approved"],                       #DODATO ako ga je admin aprove-ovao onda je 1
 
             "last_cached_at": datetime.now().timestamp()
         }

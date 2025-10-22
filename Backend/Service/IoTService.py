@@ -72,3 +72,19 @@ def UpdateIotDeviceStateService(device_id:int, new_state:str, user_id:int):
 
 
 
+def UpdateIotDevicePriorityService(device_id: int, new_priority: str, user_id: int) -> bool:
+    """
+    Validates the new priority level and delegates the update to the DB handler.
+
+    :param device_id: The ID of the IoT device.
+    :param new_priority: The new priority level ('critical', 'medium', 'low', 'non_essential').
+    :param user_id: The ID of the user who owns the device.
+    :return: True if the update was successful.
+    """
+    
+    # Validation against allowed ENUM values in the database
+    allowed_priorities = ['critical', 'medium', 'low', 'non_essential']
+    if new_priority not in allowed_priorities:
+        raise IlegalValuesException(f"Invalid priority level '{new_priority}'. Allowed values are: {', '.join(allowed_priorities)}")
+
+    return UpdateIoTPriority(device_id, new_priority, user_id)

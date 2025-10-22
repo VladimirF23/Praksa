@@ -85,6 +85,14 @@ const Navbar = () => {
                             <User className="text-white" />
                             <span>{user?.username || "MyProfile"}</span>       
                         </Link>
+
+                        {/* Admin Link: Only visible if user is admin */}
+                        {user?.user_type=="admin" && (
+                            <Link to="/admin" className="px-3 py-1 bg-purple-500 rounded-lg">
+                                Admin
+                            </Link>
+                        )}
+
                         {/* Dugme za logout */}
                         <button 
                             onClick={performLogout}                      //a ne  handleLogout() zato sto ako je zagradam react odma poziva i user se logoutuje bez da se klikne na dugme

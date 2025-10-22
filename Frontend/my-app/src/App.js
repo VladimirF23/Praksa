@@ -14,6 +14,8 @@ import ProtectedRoute  from "./components/ProtectedRoute";
 import NotFoundPage from "./pages/NotFoundPage"; 
 import AccessDeniedPage from './pages/AccessDeniedPage';
 import MyProfile from './pages/MyProfile';
+import AdminPage from './pages/AdminPage';
+
 
 //za redus stanje
 import { authCheckStart,loginSuccess,authCheckComplete } from './features/authorization/authSlice';
@@ -61,7 +63,7 @@ Ja importujemo moje page components(Home,Login..) from pages Directory
 
 // primereri dummy component-a za protektovane page-ove
 const Dashboard = () => <h2>Welcome to your Dashboard! (Protected)</h2>;
-const AdminPage = () => <h2>Welcome, Admin! (Admin Only)</h2>;
+//const AdminDummy = () => <h2>Welcome, Admin! (AdminDummy Only)</h2>;
 
 
 const AppContent  = () => {

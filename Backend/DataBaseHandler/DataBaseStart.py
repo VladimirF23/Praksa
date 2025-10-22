@@ -105,4 +105,4 @@ def release_connection(connection):
         logging.error(f"Error while releasing connection: {e}")
 
 
-initializePool()
+#initializePool()

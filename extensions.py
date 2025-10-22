@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 import json
 from flask_socketio import SocketIO
 from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import timedelta
+
 
 import logging
 logging.basicConfig(level=logging.DEBUG)            #za socketoi logovoanje
@@ -39,6 +41,16 @@ redis_client = redis.StrictRedis(
     decode_responses=True  # Automatically decode strings da ne budu u byte-ovima
 )
 
+
+#  For Cellery Define the Redis URL for the SocketIO message queue
+# ------------------------------------------------------------------
+redis_host = 'redis-praksa'
+redis_port = 6379
+redis_db = 0
+redis_url = f"redis://:{redis_password}@{redis_host}:{redis_port}/{redis_db}"
+
+
+
 # provera da li redis radi
 try:
     redis_client.ping()
@@ -58,17 +70,17 @@ jwt = JWTManager(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent',
                     ping_interval=180, #                                    Pingovi za debugovanje posle se treba ju smanjiti, 180 -> 3 minuta, timeot 300 sek
                     ping_timeout=300,  #
-                    logger=True, engineio_logger=True)
+                    logger=True,message_queue=redis_url ,engineio_logger=True)
 
 
 
 #cors_allowed_origins=["http://localhost:3000", "https://localhost","https://solartrack.local"]
 
 
-from apscheduler.schedulers.background import BackgroundScheduler
+# from apscheduler.schedulers.background import BackgroundScheduler
 
-scheduler = BackgroundScheduler()
-scheduler.start()
+# scheduler = BackgroundScheduler()
+# scheduler.start()
 
 
 # Getter da bi mogao drugde da ga koristim
@@ -88,7 +100,7 @@ def get_active_users_from_redis() -> list:
     print("Dohvatam aktivne korisnike iz Redis-a...")
     
 
-    # Koristimo 'keys("user:*")' da pronađemo sve kljuceve aktivnih korisnika.
+    # Koristimo 'keys("user:*")' da pronadjemo sve kljuceve aktivnih korisnika.
     # U produkciji sa mnogo kljuceva, 'scan' je bolji od 'keys'.
     user_keys = redis_client.keys("user:*")
     user_ids = [key.split(":")[1] for key in user_keys]
@@ -100,3 +112,6 @@ def get_active_users_from_redis() -> list:
 
     print(f"Found {len(user_keys)} active users ")
     return user_ids
+
+
+

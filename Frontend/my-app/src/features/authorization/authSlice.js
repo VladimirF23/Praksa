@@ -79,6 +79,15 @@ const authSlice = createSlice({
                 d.device_id === deviceId ? { ...d, current_status: status } : d
             );
         },
+        // --- NEW REDUCER FOR PRIORITY UPDATE ---
+        updateIotDevicePriorityRedux: (state, action) => {
+            const { deviceId, priority } = action.payload;
+            state.iotDevices = state.iotDevices.map((d) =>
+                d.device_id === deviceId ? { ...d, priority_level: priority } : d
+            );
+        },
+
+
         // MISLIM DA setUserDetails nigde ne koristim i da ne treba
 
         //reducer za podesavanja user info-a nakon uspesnog login-a / refresh-a
@@ -112,5 +121,5 @@ const authSlice = createSlice({
 });
 
 //exportuje action creator-s (loginSuccess... i loggout) za koriscenje u components da bi se discpatch-ovale ove akcije
-export const { loginSuccess, loginFailure, logout, setUserDetails, clearAuthError,setLoading,authCheckStart,authCheckComplete,setIotDevices ,toggleIotDevice } = authSlice.actions;       
+export const { loginSuccess, loginFailure, logout, setUserDetails, clearAuthError,setLoading,authCheckStart,authCheckComplete,setIotDevices ,toggleIotDevice,updateIotDevicePriorityRedux } = authSlice.actions;       
 export default authSlice.reducer;                           // funkcija koju Redux zove da updejtuje state

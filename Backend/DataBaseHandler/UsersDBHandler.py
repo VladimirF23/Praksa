@@ -1,4 +1,8 @@
 from .DataBaseStart import *
+from .IotDBHandler import*
+from .BatteryDBHandler import *
+from .SolarSystemDBHandler import *
+
 from ..CustomException import *
 import bcrypt
 
@@ -181,3 +185,128 @@ def GerUserCredentials(userCredentials: dict):
     finally:
         cursor.close()
         release_connection(connection)
+
+
+
+def GetAllUsersBasic() -> list[dict]:
+    """
+    Fetches all users (non-admin and admin) from the database with basic info.
+    """
+    query = """
+    SELECT 
+        user_id, username, email, user_type, house_size_sqm, 
+        num_household_members, latitude, longitude, registration_date
+    FROM users
+    WHERE user_type='regular';
+    """
+    connection = getConnection()
+    cursor = connection.cursor(dictionary=True)
+    try:
+        cursor.execute(query)
+        users = cursor.fetchall()
+
+        for user_db in users:
+            user_db["house_size_sqm"] = float(user_db["house_size_sqm"])
+            user_db["latitude"] = float(user_db["latitude"])
+            user_db["longitude"] = float(user_db["longitude"])
+            
+            if user_db["registration_date"]:
+                 user_db["registration_date"] = user_db["registration_date"].timestamp()
+
+        return users
+    except mysql.connector.Error as err:
+        raise ConnectionException(f"Database error while fetching all users: {str(err)}")
+    finally:
+        cursor.close()
+        release_connection(connection)
+
+
+
+def GetAllUsersWithSystemData() -> list[dict]:
+    """
+    Fetches all users and aggregates their associated solar system, battery, and IoT devices.
+    
+    Returns:
+        list[dict]: A list where each dictionary contains user data and nested system/device data.
+    """
+    all_users = GetAllUsersBasic()
+    
+
+    
+    users_with_data = []
+    
+    for user in all_users:
+        user_id = user["user_id"]
+        
+
+        # SELECT * FROM solar_systems WHERE user_id = %s
+        solar_system = None
+        try:
+            solar_system = GetSolarSystemByUserId(user_id)
+        except Exception: 
+            # Catching generic exception here is a common pattern for "optional" related data 
+            pass
+        
+        user["solar_system"] = solar_system
+        
+        battery = None
+        if solar_system and solar_system.get("system_type") == "grid_tied_hybrid":
+            try:
+
+                battery = GetBatteryIdBySystemIDService(solar_system["system_id"])
+            except Exception:
+                pass
+        
+        if solar_system:
+            solar_system["battery"] = battery 
+
+
+        iot_devices = []
+        try:
+            iot_devices = GetIoTDevicesByUserId(user_id)
+        except Exception:
+            pass
+            
+        user["iot_devices"] = iot_devices
+        
+        users_with_data.append(user)
+        
+    return users_with_data
+
+
+
+def UpdateUserApprovalStatus(system_id: int, approved: bool) -> None:
+    """
+    Updates the 'approved' status for a given solar system.
+    Args:
+        system_id (int): The unique ID of the solar system.
+        approved (bool): New approval status (True/False).
+    """
+    query = """
+        UPDATE solar_systems
+        SET approved = %s
+        WHERE system_id = %s;
+    """
+
+    connection = getConnection()
+    cursor = connection.cursor()
+
+    try:
+        approved_value = 1 if approved else 0
+        cursor.execute(query, (approved_value, system_id))
+
+        if cursor.rowcount == 0:
+            connection.rollback()
+            raise ValueError(f"No solar system found with system_id={system_id}")
+
+        connection.commit()
+
+    except mysql.connector.Error as err:
+        connection.rollback()
+        raise ConnectionException(f"Database error while updating approval status: {str(err)}")
+
+    finally:
+        cursor.close()
+        release_connection(connection)
+
+

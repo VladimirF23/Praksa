@@ -39,7 +39,7 @@ const ProtectedRoute = ({children,adminOnly = false}) =>{
     //3. Handlovanje Unauthorized (non Global Admini) za Global-Admin-Only Routes
     // ovo provera se koristi ako je `adminOnly` prop je pass-ovan kao true ka ProtectedRoute.
     // Proverava da li autentifikovani user ima  'global_admin' privilegiju
-    if (adminOnly && (!user || !user.global_admin)) {
+    if (adminOnly && (!user || user.user_type!="admin")) {
         // Ako je prijavljen i nije global admin redirectujemo ga /403 page-u
         //koristimo replace iz istih history management razloga
         return <Navigate to="/403" replace />;      //ovo je AccesDeniedPage.jsx

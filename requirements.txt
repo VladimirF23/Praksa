@@ -4,6 +4,8 @@ Flask-JWT-Extended
 Flask
 mysql-connector-python
 python-dotenv
+celery==5.5.3
+
 
 debugpy
 Flask-CORS

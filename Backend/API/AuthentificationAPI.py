@@ -68,6 +68,8 @@ def login():
                 "base_consumption_kw": solar_system_data["base_consumption_kw"],
                 "tilt_degrees": solar_system_data["tilt_degrees"],
                 "azimuth_degrees": solar_system_data["azimuth_degrees"],
+                "approved":solar_system_data["approved"],                       #DODATO ako ga je admin aprove-ovao onda je 1
+
                 "last_cached_at": datetime.now().timestamp()
             }
 
@@ -118,7 +120,7 @@ def login():
                 "username": user["username"],           
                 "user_type": user["user_type"]  
             },
-            expires_delta=timedelta(seconds=15) # 20 sekundi za testiranje
+            expires_delta=timedelta(minutes=15) # 20 sekundi za testiranje
         )
         
         refresh_token = create_refresh_token(
@@ -203,30 +205,84 @@ def login():
 
     
 
-#ispravi ovo
-@auth_blueprint.route('/admin', methods=['GET'])
+
+@auth_blueprint.route('/admin_getUsers', methods=['GET'])
 @jwt_required()
-def admin_only():
+def admin_only_get_users():
     try:
-        # Get the identity of the current user (e.g., user_id) if needed for logging
-        user_id = get_jwt_identity()
-
-        # Get the entire JWT payload (claims)
+        # 1. Authorization Check
         jwt_claims = get_jwt()
-
-
+        user_id = get_jwt_identity()
         user_type = jwt_claims.get("user_type") 
 
-
-        if user_type != "admin": #
+        if user_type != "admin": 
             print(f"Unauthorized access attempt to /admin by user_id: {user_id}, user_type: {user_type}")
             return jsonify({"error": "Forbidden: Admin access required"}), 403
 
-        return jsonify({"message": f"Welcome, Admin {user_id}!"}), 200
+        # 2. Fetch All User Data
+        all_users_data = GetAllUsersWithSystemDataService()
+        
+        # 3. Success Response
+        return jsonify({
+            "message": "Successfully retrieved all users and system data for admin review.",
+            "users": all_users_data
+        }), 200
+
+    except ConnectionException as e:
+        print(f"Database error in /admin endpoint: {e}")
+        return jsonify({"error": "A database connection error occurred"}), 500
 
     except Exception as e:
+        # Includes IlegalValuesException or others not caught specifically
         print(f"An unexpected error occurred in /admin endpoint: {e}")
         return jsonify({"error": "An internal server error occurred"}), 500
+
+
+@auth_blueprint.route('/admin_updateApproval', methods=['PUT'])
+@jwt_required()
+def admin_update_user_approval():
+    try:
+        # 1. Authorization check
+        jwt_claims = get_jwt()
+        user_id = get_jwt_identity()
+        user_type = jwt_claims.get("user_type")
+
+        if user_type != "admin":
+            print(f"Unauthorized access attempt to /admin_updateApproval by user_id: {user_id}, user_type: {user_type}")
+            return jsonify({"error": "Forbidden: Admin access required"}), 403
+
+        data = request.get_json()
+        system_id = data.get("system_id")
+        approved = data.get("approved")
+
+        if system_id is None or approved is None:
+            return jsonify({"error": "Missing required fields: system_id and approved"}), 400
+
+
+
+        # 3. Perform update
+        result = UpdateUserApprovalStatusService(system_id, approved)
+
+        #da ga obrisemo iz cache-a da bi se updejtovao approved
+        key = f"solar_system:{system_id}"
+        redis_client.delete(key)
+
+
+
+        return jsonify({
+            "message": "User approval status updated successfully.",
+            "system_id": system_id,
+            "approved": approved,
+            "result": result
+        }), 200
+
+
+
+    except Exception as e:
+        print(f"Unexpected error in /admin_updateApproval: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
 
 
 # Ovo se automatski poziva nakon uspesnog logina sa strane front-a i ovako osiguravam da login imao single responsability a to je set-ovanje access/refresh/csrf tokena
