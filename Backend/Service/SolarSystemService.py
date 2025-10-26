@@ -73,3 +73,8 @@ def RegisterSolarSystemService(solar_system: dict, user_id: int, battery_id: int
 def GetSolarSystemByUserIdService(user_id:int)->dict:
 
     return GetSolarSystemByUserId(user_id)
+
+
+def UpdateSolarSystemBatteryIdService(system_id: int, battery_id: int = None) -> bool:
+
+    return UpdateSolarSystemBatteryId(system_id,battery_id)

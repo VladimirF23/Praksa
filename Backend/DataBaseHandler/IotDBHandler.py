@@ -177,4 +177,75 @@ def UpdateIoTPriority(device_id: int, new_priority: str, user_id: int) -> bool:
         cursor.close()
         release_connection(connection)
 
+
+def GetSolarSystemIdByUserId(user_id: int) -> int:
+    """
+    Retrieves the system_id for a given user.
     
+    Args:
+        user_id (int): The ID of the user.
+
+    Returns:
+        int | None: The system_id or None if no system is found.
+    """
+    query = "SELECT system_id FROM solar_systems WHERE user_id = %s"
+    
+    connection = getConnection()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute(query, (user_id,))
+        result = cursor.fetchone()
+        
+        if result:
+            return result[0]  # Return the system_id
+        else:
+            return None # No system found for this user
+
+    except mysql.connector.OperationalError as err:
+        raise ConnectionException("Database connection error while fetching system ID.") from err
+        
+    finally:
+        cursor.close()
+        release_connection(connection)
+
+
+def DeleteIoTDevice(device_id: int, user_id: int) -> bool:
+    """
+    Deletes an IoT device by device_id, ensuring it belongs to the specified user 
+    for security and ownership verification.
+
+    Args:
+        device_id (int): The ID of the IoT device to delete.
+        user_id (int): The ID of the user who owns the device.
+
+    Returns:
+        bool: True if the device was successfully deleted, False if not found/deleted.
+    """
+
+    query = """
+        DELETE FROM iot_devices
+        WHERE device_id = %s AND user_id = %s
+    """
+
+    connection = getConnection()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute(query, (device_id, user_id))
+        connection.commit()
+
+        # Check if any row was affected (i.e., if the device was found and deleted)
+        if cursor.rowcount == 0:
+            # Device not found or not owned by the user
+            return False 
+        
+        return True
+
+    except mysql.connector.OperationalError as err:
+        connection.rollback()
+        raise ConnectionException("Database connection error while deleting IoT device.") from err
+
+    finally:
+        cursor.close()
+        release_connection(connection)

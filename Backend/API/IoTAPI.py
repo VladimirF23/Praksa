@@ -82,3 +82,85 @@ def update_iot_device_priority():
     except Exception as e:
         print(f"An unexpected error occurred in update_iot_device_priority endpoint: {e}")
         return jsonify({"error": "An internal server error occurred."}), 500
+    
+
+@iot_bp.route("/iot/add", methods=["POST"])
+@jwt_required()
+def add_iot_device():
+    """
+    Endpoint for adding a new IoT device and returning the updated list.
+    """
+    try:
+        user_id = get_jwt_identity()
+        device_data = request.get_json()
+
+        if not device_data:
+            return jsonify({"error": "Missing device data"}), 400
+        
+
+        solar_system_id = GetSolarSystemIdByUserId(user_id) 
+        
+        iot_list = [device_data]
+
+        # koristim vec postojeci service za ddoavanje IoT-a ali dodajem samo jedan iot
+        success = RegisterIoTService(iot_list, user_id, solar_system_id)
+        
+        if not success:
+            return jsonify({"error": "Failed to register new device in database."}), 500
+        
+        # 2. Invalidate cache
+        cache_key = f"user_iot_devices:{user_id}"
+        redis_client.delete(cache_key)
+
+        # 3. Fetch and return the full, updated list of devices 
+        updated_devices = GetUsersIOTsService(user_id)
+
+        return jsonify({
+            "message": "Device added successfully.", 
+            "devices": updated_devices
+        }), 200
+
+    except IlegalValuesException as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        print(f"An unexpected error occurred in add_iot_device endpoint: {e}")
+        return jsonify({"error": "An internal server error occurred."}), 500
+
+
+
+
+@iot_bp.route("/iot/delete", methods=["POST"])
+@jwt_required()
+def delete_iot_device():
+    """
+    Endpoint for deleting an IoT device by ID and returning the updated list.
+    """
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        device_id = int(data.get("device_id"))
+
+        if not device_id:
+            return jsonify({"error": "Missing device_id parameter"}), 400
+
+        # 1. Call service to delete device
+        success = DeleteIotDeviceService(device_id, user_id)
+        
+        if not success:
+            return jsonify({"error": "Failed to delete device or device not found."}), 500
+        
+        # 2. Invalidate cache
+        cache_key = f"user_iot_devices:{user_id}"
+        redis_client.delete(cache_key)
+
+        # 3. Fetch and return the full, updated list of devices
+        updated_devices = GetUsersIOTsService(user_id)
+
+        return jsonify({
+            "message": "Device deleted successfully.", 
+            "devices": updated_devices
+        }), 200
+
+    except Exception as e:
+        print(f"An unexpected error occurred in delete_iot_device endpoint: {e}")
+        return jsonify({"error": "An internal server error occurred."}), 500

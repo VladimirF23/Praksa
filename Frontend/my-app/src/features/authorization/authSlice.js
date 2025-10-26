@@ -86,7 +86,10 @@ const authSlice = createSlice({
                 d.device_id === deviceId ? { ...d, priority_level: priority } : d
             );
         },
+        setBatteryDetails: (state, action) => {
+            state.battery=action.payload;               // payload can be the battery object or null
 
+        },
 
         // MISLIM DA setUserDetails nigde ne koristim i da ne treba
 
@@ -121,5 +124,5 @@ const authSlice = createSlice({
 });
 
 //exportuje action creator-s (loginSuccess... i loggout) za koriscenje u components da bi se discpatch-ovale ove akcije
-export const { loginSuccess, loginFailure, logout, setUserDetails, clearAuthError,setLoading,authCheckStart,authCheckComplete,setIotDevices ,toggleIotDevice,updateIotDevicePriorityRedux } = authSlice.actions;       
+export const { loginSuccess, loginFailure, logout, setUserDetails, clearAuthError,setLoading,authCheckStart,authCheckComplete,setIotDevices ,toggleIotDevice,updateIotDevicePriorityRedux,setBatteryDetails } = authSlice.actions;       
 export default authSlice.reducer;                           // funkcija koju Redux zove da updejtuje state

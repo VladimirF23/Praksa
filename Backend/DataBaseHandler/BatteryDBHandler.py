@@ -259,3 +259,62 @@ def update_battery_percentage(battery_id: int, new_percentage: float) -> bool:
     finally:
         cursor.close()
         release_connection(connection)
+
+
+
+
+
+def DeleteBattery(battery_id: int) -> bool:
+    """
+    Brise zapis baterije iz tabele 'batteries' na osnovu njenog ID-a.
+    Ovo ce automatski podesiti 'battery_id' u povezanom 'solar_systems' na NULL
+    zbog ON DELETE SET NULL constraint-a na Foreign Key.
+
+    Args:
+        battery_id (int): ID baterije koju treba obrisati.
+
+    Returns:
+        bool: True ako je brisanje uspesno (red je pronadjen i obrisan), False inace.
+
+    Raises:
+        IlegalValuesException: Ako ID nije validan.
+        ConnectionException: Ako dodje do greske sa konekcijom ili bazom.
+    """
+    if not isinstance(battery_id, int) or battery_id <= 0:
+        raise IlegalValuesException("Battery ID must be a positive integer.")
+
+    query = """
+    DELETE FROM batteries
+    WHERE battery_id = %s;
+    """
+    connection = None
+    cursor = None
+    try:
+        connection = getConnection()
+        cursor = connection.cursor()
+
+        cursor.execute(query, (battery_id,))
+
+        # Proveravamo da li je red obrisan
+        deleted_count = cursor.rowcount
+        
+        connection.commit()
+
+        if deleted_count > 0:
+            print(f"Baterija ID {battery_id} uspesno obrisana. Povezan solar_system.battery_id postavljen na NULL.")
+            return True
+        else:
+            # Ako je rowcount 0, baterija sa tim ID-jem nije pronadjena
+            print(f"Baterija ID {battery_id} nije pronadjena za brisanje.")
+            return False
+
+    except mysql.connector.Error as err:
+        if connection:
+            connection.rollback()
+        # Hvatanje genericke MySQL greske, sto je dovoljno za operaciju brisanja
+        raise ConnectionException(f"Greska baze podataka prilikom brisanja baterije: {str(err)}")
+    
+    finally:
+        if cursor:
+            cursor.close()
+        release_connection(connection)

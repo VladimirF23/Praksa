@@ -1,3 +1,5 @@
+//constants/predefinedData.js
+
 // Predefinisani izbori za input polja
 export const SYSTEM_TYPES = [
     { value: 'grid_tied', label: 'Grid Tied (Nema bateriju)' },

@@ -27,6 +27,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app,x_for=1, x_proto=1,x_host=1)
 app.register_blueprint(registration_blueprint)
 app.register_blueprint(auth_blueprint)
 app.register_blueprint(iot_bp)
+app.register_blueprint(battery_bp)
 
 # app.register_blueprint(live_metering_bp)
 

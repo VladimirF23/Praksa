@@ -64,6 +64,14 @@ def UpdateBatteryCurrentPercentageService(battery_id:int,new_percentage: float)-
     return update_battery_percentage(battery_id,new_percentage)
 
 
-def GetBatteryIdBySystemIDService(system_id:int) -> dict:
 
-    return GetBatteryIdBySystemIDService(system_id)
+
+
+
+def DeleteBatteryForUserService(battery_id: int) -> bool:
+
+
+    # 3. Pozvati DB funkciju za brisanje
+    success = DeleteBattery(battery_id) # <--- Koristi novu DB funkciju
+    
+    return success

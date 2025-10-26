@@ -141,4 +141,39 @@ def GetSolarSystemByUserId(user_id:int)->dict:
 
 
 
+#NOVO
+def UpdateSolarSystemBatteryId(system_id: int, battery_id: int = None) -> bool:
+    """
+    Azulira battery_id u tabeli solar_systems za dati system_id.
+    Ovo se koristi pri dodavanju nove baterije (battery_id je int) ili
+    pri brisanju baterije (battery_id je None/NULL).
+    """
 
+    query = """
+    UPDATE solar_systems
+    SET battery_id = %s
+    WHERE system_id = %s;
+    """
+    
+    connection = None
+    cursor = None
+    try:
+        connection = getConnection()
+        cursor = connection.cursor()
+
+        # battery_id je None ako brisemo, inace je int
+        cursor.execute(query, (battery_id, system_id)) 
+        
+        connection.commit()
+        return cursor.rowcount > 0
+
+    except mysql.connector.Error as err:
+        if connection:
+            connection.rollback()
+        # Hvata i 1452 (Foreign key violation) ako je nevalidan battery_id
+        raise ConnectionException(f"Greska baze podataka prilikom azuriranja battery_id u solar_systems: {str(err)}")
+    
+    finally:
+        if cursor:
+            cursor.close()
+        release_connection(connection)

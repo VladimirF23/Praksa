@@ -88,3 +88,19 @@ def UpdateIotDevicePriorityService(device_id: int, new_priority: str, user_id: i
         raise IlegalValuesException(f"Invalid priority level '{new_priority}'. Allowed values are: {', '.join(allowed_priorities)}")
 
     return UpdateIoTPriority(device_id, new_priority, user_id)
+
+
+def GetSolarSystemIdByUserIdService(user_id: int) -> int:
+    
+    return GetSolarSystemIdByUserId(user_id)        #ID solaranog sistema od korisnika nam treba
+
+
+def DeleteIotDeviceService(device_id: int, user_id: int) -> bool:
+    """
+    Delegates the deletion of a specific IoT device to the DB handler.
+    
+    :param device_id: The ID of the IoT device to delete.
+    :param user_id: The ID of the user who owns the device.
+    :return: True if deletion was successful.
+    """
+    return DeleteIoTDevice(device_id, user_id)
